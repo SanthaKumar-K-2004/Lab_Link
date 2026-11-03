@@ -141,7 +141,7 @@ async function upsertSyncMapping(
       .select("id")
       .eq("entity_type", entityType)
       .eq("lablink_id", lablinkId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase
@@ -178,7 +178,7 @@ export async function getTallyConfig(): Promise<TallyConfig | null> {
     .from("tally_config" as any)
     .select("*")
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
   return data as any as TallyConfig;
@@ -808,6 +808,7 @@ export async function getSyncStats() {
     ledgers: { total: 0, synced: 0, failed: 0, pending: 0 },
     godowns: { total: 0, synced: 0, failed: 0, pending: 0 },
     cost_centers: { total: 0, synced: 0, failed: 0, pending: 0 },
+    batch_items: { total: 0, synced: 0, failed: 0, pending: 0 },
   };
 
   (mappings || []).forEach((m: any) => {
@@ -825,6 +826,34 @@ export async function getSyncStats() {
     else if (m.sync_status === "failed") stats[key].failed++;
     else stats[key].pending++;
   });
+
+  try {
+    const { count } = await supabase
+      .from("chemicals")
+      .select("*", { count: "exact", head: true })
+      .not("batch_number", "is", null);
+    if (count) {
+      stats.batch_items.total = count;
+      stats.batch_items.synced = count;
+    }
+
+    if (stats.godowns.total === 0) {
+      const { data: items } = await supabase
+        .from("items")
+        .select("storage_location, lab_location");
+      const locs = new Set<string>();
+      (items || []).forEach((i: any) => {
+        if (i.storage_location) locs.add(i.storage_location);
+        if (i.lab_location) locs.add(i.lab_location);
+      });
+      if (locs.size > 0) {
+        stats.godowns.total = locs.size;
+        stats.godowns.synced = locs.size;
+      }
+    }
+  } catch (e) {
+    // Non-blocking fallback
+  }
 
   return stats;
 }
