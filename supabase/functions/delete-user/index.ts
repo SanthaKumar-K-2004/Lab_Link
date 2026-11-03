@@ -1,17 +1,22 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 interface DeleteUserRequest {
   user_id: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -26,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
       return new Response(
         JSON.stringify({ success: false, error: "Server configuration error" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -41,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!authHeader && !apiKey) {
       return new Response(
         JSON.stringify({ success: false, error: "Authorization required" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -49,16 +54,15 @@ const handler = async (req: Request): Promise<Response> => {
     let requestingUser = null;
     
     if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
+      const token = authHeader.replace(/^Bearer\s+/i, "");
       const { data, error: authError } = await supabaseAdmin.auth.getUser(token);
       
       if (authError) {
         console.error("Auth error:", authError.message);
-        // Try to proceed if we have apikey (for service role calls)
         if (!apiKey) {
           return new Response(
             JSON.stringify({ success: false, error: "Session expired. Please refresh the page and try again." }),
-            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
           );
         }
       } else {
@@ -69,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!requestingUser) {
       return new Response(
         JSON.stringify({ success: false, error: "Could not verify user. Please log out and log back in." }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -83,7 +87,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!roleData || roleData.role !== "admin") {
       return new Response(
         JSON.stringify({ success: false, error: "Only admins can delete users" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -94,7 +98,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!user_id) {
       return new Response(
         JSON.stringify({ success: false, error: "User ID is required" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -102,122 +106,224 @@ const handler = async (req: Request): Promise<Response> => {
     if (user_id === requestingUser.id) {
       return new Response(
         JSON.stringify({ success: false, error: "Cannot delete your own account" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Check if trying to delete default admin
     const { data: targetProfile } = await supabaseAdmin
       .from("profiles")
-      .select("is_default_admin, full_name")
+      .select("is_default_admin, full_name, email")
       .eq("id", user_id)
       .single();
 
     if (targetProfile?.is_default_admin) {
       return new Response(
         JSON.stringify({ success: false, error: "Cannot delete the default admin account" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Delete related records first (due to foreign key constraints)
-    // Order matters - delete child records before parent
-    
-    // Delete from user_departments
+    // Execute atomic cascading deletion via database RPC inside a single ACID transaction (SEC-12)
+    let cascadeSucceeded = false;
     try {
-      await supabaseAdmin.from("user_departments").delete().eq("user_id", user_id);
-      console.log("Deleted user_departments");
-    } catch (e) {
-      console.log("user_departments cleanup skipped", e);
-    }
-
-    // Delete from user_roles
-    try {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
-      console.log("Deleted user_roles");
-    } catch (e) {
-       console.log("user_roles cleanup skipped", e);
-    }
-
-    // Delete from login_logs
-    try {
-      await supabaseAdmin.from("login_logs").delete().eq("user_id", user_id);
-      console.log("Deleted login_logs");
-    } catch (e) {
-      console.log("login_logs cleanup skipped", e);
-    }
-
-    // Delete from notifications
-    try {
-      await supabaseAdmin.from("notifications").delete().eq("user_id", user_id);
-      console.log("Deleted notifications");
-    } catch (e) {
-      console.log("notifications cleanup skipped", e);
-    }
-
-    // Delete from audit_logs (user_id references profiles)
-    try {
-      await supabaseAdmin.from("audit_logs").delete().eq("user_id", user_id);
-      console.log("Deleted audit_logs");
-    } catch (e) {
-      console.log("audit_logs cleanup skipped", e);
-    }
-
-    // Delete from activity_logs if exists
-    try {
-      await supabaseAdmin.from("activity_logs").delete().eq("user_id", user_id);
-      console.log("Deleted activity_logs");
-    } catch (e) {
-      console.log("activity_logs table may not exist, skipping");
-    }
-
-    // Delete from borrow_requests if user is the requester
-    try {
-      await supabaseAdmin.from("borrow_requests").delete().eq("user_id", user_id);
-      console.log("Deleted borrow_requests");
-    } catch (e) {
-      console.log("borrow_requests cleanup skipped");
-    }
-
-    // Delete from otp_verifications (by email)
-    try {
-      const { data: profileData } = await supabaseAdmin
-        .from("profiles")
-        .select("email")
-        .eq("id", user_id)
-        .single();
-      
-      if (profileData?.email) {
-        await supabaseAdmin.from("otp_verifications").delete().eq("email", profileData.email);
-        console.log("Deleted otp_verifications");
+      const { data: cascadeRes, error: cascadeErr } = await supabaseAdmin.rpc(
+        "admin_delete_user_cascade",
+        { p_user_id: user_id }
+      );
+      if (!cascadeErr && cascadeRes?.success) {
+        cascadeSucceeded = true;
+        console.log("Atomic cascade deletion completed via database transaction");
+      } else if (cascadeErr) {
+        console.warn("admin_delete_user_cascade RPC not available or failed, falling back to manual cleanup:", cascadeErr.message);
       }
-    } catch (e) {
-      console.log("otp_verifications cleanup skipped", e);
+    } catch (rpcErr) {
+      console.warn("RPC invocation error, using manual fallback:", rpcErr);
     }
 
-    // Delete profile
-    const { error: profileDeleteError } = await supabaseAdmin
-      .from("profiles")
-      .delete()
-      .eq("id", user_id);
+    if (!cascadeSucceeded) {
+      // Fallback manual cleanup loop
+      // 1. Departments head_user_id
+      try {
+        await supabaseAdmin.from("departments").update({ head_user_id: null }).eq("head_user_id", user_id);
+      } catch (e) {
+        console.log("departments cleanup skipped", e);
+      }
 
-    if (profileDeleteError) {
-      console.error("Profile delete error:", profileDeleteError.message);
-      return new Response(
-        JSON.stringify({ success: false, error: "Failed to delete profile: " + profileDeleteError.message }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      // 2. Return logs
+      try {
+        await supabaseAdmin.from("return_logs").update({ returned_by_staff: null }).eq("returned_by_staff", user_id);
+      } catch (e) {
+        console.log("return_logs update skipped", e);
+      }
+
+      // 3. Issued items (issued_to, issued_by, borrow_request_id)
+      try {
+        const { data: userBorrowRequests } = await supabaseAdmin
+          .from("borrow_requests")
+          .select("id")
+          .eq("student_id", user_id);
+
+        if (userBorrowRequests && userBorrowRequests.length > 0) {
+          const brIds = userBorrowRequests.map(r => r.id);
+          await supabaseAdmin
+            .from("issued_items")
+            .update({ borrow_request_id: null })
+            .in("borrow_request_id", brIds);
+        }
+
+        await supabaseAdmin
+          .from("issued_items")
+          .update({ issued_by: null })
+          .eq("issued_by", user_id);
+
+        await supabaseAdmin
+          .from("issued_items")
+          .delete()
+          .eq("issued_to", user_id);
+
+        console.log("Cleaned up issued_items");
+      } catch (e) {
+        console.log("issued_items cleanup skipped", e);
+      }
+
+      // 4. Damage reports (reported_by, reviewed_by)
+      try {
+        await supabaseAdmin.from("damage_reports").update({ reported_by: null }).eq("reported_by", user_id);
+        await supabaseAdmin.from("damage_reports").update({ reviewed_by: null }).eq("reviewed_by", user_id);
+        console.log("Cleaned up damage_reports");
+      } catch (e) {
+        console.log("damage_reports cleanup skipped", e);
+      }
+
+      // 5. Maintenance records & repair requests (assigned_to, requested_by)
+      try {
+        await supabaseAdmin.from("maintenance_records").update({ assigned_to: null }).eq("assigned_to", user_id);
+      } catch (e) {
+        console.log("maintenance_records cleanup skipped", e);
+      }
+      try {
+        await supabaseAdmin.from("repair_requests").update({ requested_by: null }).eq("requested_by", user_id);
+      } catch (e) {
+        console.log("repair_requests cleanup skipped (or table does not exist)", e);
+      }
+
+      // 6. Purchase orders & vendors
+      try {
+        await supabaseAdmin.from("purchase_orders").update({ created_by: null }).eq("created_by", user_id);
+        await supabaseAdmin.from("purchase_orders").update({ approved_by: null }).eq("approved_by", user_id);
+        await supabaseAdmin.from("purchase_orders").update({ rejected_by: null }).eq("rejected_by", user_id);
+        await supabaseAdmin.from("vendors").update({ created_by: null }).eq("created_by", user_id);
+        await supabaseAdmin.from("tally_config").update({ created_by: null }).eq("created_by", user_id);
+        await supabaseAdmin.from("tally_sync_logs").update({ created_by: null }).eq("created_by", user_id);
+        console.log("Cleaned up purchase_orders, vendors, tally records");
+      } catch (e) {
+        console.log("purchase_orders/vendors cleanup skipped", e);
+      }
+
+      // 7. Items & Chemicals & Stock transactions created_by
+      try {
+        await supabaseAdmin.from("items").update({ created_by: null }).eq("created_by", user_id);
+        await supabaseAdmin.from("chemicals").update({ created_by: null }).eq("created_by", user_id);
+        await supabaseAdmin.from("stock_transactions").update({ recorded_by: null }).eq("recorded_by", user_id);
+      } catch (e) {
+        console.log("items/chemicals cleanup skipped", e);
+      }
+
+      // 8. Delete from user_departments
+      try {
+        await supabaseAdmin.from("user_departments").delete().eq("user_id", user_id);
+        console.log("Deleted user_departments");
+      } catch (e) {
+        console.log("user_departments cleanup skipped", e);
+      }
+
+      // 9. Delete from user_roles
+      try {
+        await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
+        console.log("Deleted user_roles");
+      } catch (e) {
+        console.log("user_roles cleanup skipped", e);
+      }
+
+      // 10. Delete from login_logs
+      try {
+        await supabaseAdmin.from("login_logs").delete().eq("user_id", user_id);
+        console.log("Deleted login_logs");
+      } catch (e) {
+        console.log("login_logs cleanup skipped", e);
+      }
+
+      // 11. Delete from notifications
+      try {
+        await supabaseAdmin.from("notifications").delete().eq("user_id", user_id);
+        console.log("Deleted notifications");
+      } catch (e) {
+        console.log("notifications cleanup skipped", e);
+      }
+
+      // 12. Preserve audit trail by setting user_id to null instead of deleting historical records
+      try {
+        await supabaseAdmin.from("audit_logs").update({ user_id: null }).eq("user_id", user_id);
+        console.log("Preserved audit_logs (set user_id to null)");
+      } catch (e) {
+        console.log("audit_logs update skipped", e);
+      }
+
+      // 13. Preserve activity_logs if exists
+      try {
+        await supabaseAdmin.from("activity_logs").update({ user_id: null }).eq("user_id", user_id);
+        await supabaseAdmin.from("activity_logs").update({ performed_by: null }).eq("performed_by", user_id);
+        console.log("Preserved activity_logs (set user_id to null)");
+      } catch (e) {
+        console.log("activity_logs update skipped", e);
+      }
+
+      // 14. Delete from borrow_requests if user is the student, or nullify approved_by
+      try {
+        await supabaseAdmin.from("borrow_requests").update({ approved_by: null }).eq("approved_by", user_id);
+        await supabaseAdmin.from("borrow_requests").delete().eq("student_id", user_id);
+        console.log("Deleted borrow_requests");
+      } catch (e) {
+        console.log("borrow_requests cleanup skipped", e);
+      }
+
+      // 15. Delete from otp_verifications (by email)
+      try {
+        const emailToDelete = targetProfile?.email;
+        if (emailToDelete) {
+          await supabaseAdmin.from("otp_verifications").delete().eq("email", emailToDelete);
+          console.log("Deleted otp_verifications");
+        }
+      } catch (e) {
+        console.log("otp_verifications cleanup skipped", e);
+      }
+
+      // 16. Delete profile
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from("profiles")
+        .delete()
+        .eq("id", user_id);
+
+      if (profileDeleteError) {
+        console.error("Profile delete error:", profileDeleteError.message);
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to delete profile: " + profileDeleteError.message }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      console.log("Deleted profile");
     }
-    console.log("Deleted profile");
 
-    // Finally, delete auth user
+
+    // 17. Finally, delete auth user
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
 
     if (authDeleteError) {
       console.error("Auth delete error:", authDeleteError.message);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to delete auth user: " + authDeleteError.message }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
     console.log("Deleted auth user");
@@ -235,7 +341,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("Unexpected error:", error.message);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

@@ -2028,6 +2028,427 @@ export type Database = {
         };
         Relationships: [];
       };
+      tally_config: {
+        Row: {
+          company_name: string;
+          created_at: string | null;
+          created_by: string | null;
+          host: string;
+          id: string;
+          is_enabled: boolean;
+          last_sync_at: string | null;
+          port: number;
+          updated_at: string | null;
+        };
+        Insert: {
+          company_name?: string;
+          created_at?: string | null;
+          created_by?: string | null;
+          host?: string;
+          id?: string;
+          is_enabled?: boolean;
+          last_sync_at?: string | null;
+          port?: number;
+          updated_at?: string | null;
+        };
+        Update: {
+          company_name?: string;
+          created_at?: string | null;
+          created_by?: string | null;
+          host?: string;
+          id?: string;
+          is_enabled?: boolean;
+          last_sync_at?: string | null;
+          port?: number;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tally_config_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vendors: {
+        Row: {
+          address: string | null;
+          city: string | null;
+          contact_person: string | null;
+          created_at: string | null;
+          created_by: string | null;
+          credit_limit: number | null;
+          email: string | null;
+          gstin: string | null;
+          id: string;
+          is_active: boolean | null;
+          name: string;
+          pan: string | null;
+          payment_terms: string | null;
+          phone: string | null;
+          pincode: string | null;
+          state: string | null;
+          tally_ledger_name: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          address?: string | null;
+          city?: string | null;
+          contact_person?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+          credit_limit?: number | null;
+          email?: string | null;
+          gstin?: string | null;
+          id?: string;
+          is_active?: boolean | null;
+          name: string;
+          pan?: string | null;
+          payment_terms?: string | null;
+          phone?: string | null;
+          pincode?: string | null;
+          state?: string | null;
+          tally_ledger_name?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          address?: string | null;
+          city?: string | null;
+          contact_person?: string | null;
+          created_at?: string | null;
+          created_by?: string | null;
+          credit_limit?: number | null;
+          email?: string | null;
+          gstin?: string | null;
+          id?: string;
+          is_active?: boolean | null;
+          name?: string;
+          pan?: string | null;
+          payment_terms?: string | null;
+          phone?: string | null;
+          pincode?: string | null;
+          state?: string | null;
+          tally_ledger_name?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vendors_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_orders: {
+        Row: {
+          approved_at: string | null;
+          approved_by: string | null;
+          cgst_amount: number;
+          created_at: string | null;
+          created_by: string | null;
+          department_id: string | null;
+          expected_delivery_date: string | null;
+          grand_total: number;
+          id: string;
+          igst_amount: number;
+          notes: string | null;
+          order_date: string;
+          po_number: string;
+          rejected_at: string | null;
+          rejected_by: string | null;
+          rejection_reason: string | null;
+          sgst_amount: number;
+          status: Database["public"]["Enums"]["purchase_order_status"];
+          subtotal: number;
+          tally_sync_error: string | null;
+          tally_sync_status: Database["public"]["Enums"]["tally_sync_status"];
+          tally_synced_at: string | null;
+          tally_voucher_number: string | null;
+          total_gst: number;
+          updated_at: string | null;
+          vendor_id: string;
+        };
+        Insert: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          cgst_amount?: number;
+          created_at?: string | null;
+          created_by?: string | null;
+          department_id?: string | null;
+          expected_delivery_date?: string | null;
+          grand_total?: number;
+          id?: string;
+          igst_amount?: number;
+          notes?: string | null;
+          order_date?: string;
+          po_number?: string;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          sgst_amount?: number;
+          status?: Database["public"]["Enums"]["purchase_order_status"];
+          subtotal?: number;
+          tally_sync_error?: string | null;
+          tally_sync_status?: Database["public"]["Enums"]["tally_sync_status"];
+          tally_synced_at?: string | null;
+          tally_voucher_number?: string | null;
+          total_gst?: number;
+          updated_at?: string | null;
+          vendor_id: string;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          cgst_amount?: number;
+          created_at?: string | null;
+          created_by?: string | null;
+          department_id?: string | null;
+          expected_delivery_date?: string | null;
+          grand_total?: number;
+          id?: string;
+          igst_amount?: number;
+          notes?: string | null;
+          order_date?: string;
+          po_number?: string;
+          rejected_at?: string | null;
+          rejected_by?: string | null;
+          rejection_reason?: string | null;
+          sgst_amount?: number;
+          status?: Database["public"]["Enums"]["purchase_order_status"];
+          subtotal?: number;
+          tally_sync_error?: string | null;
+          tally_sync_status?: Database["public"]["Enums"]["tally_sync_status"];
+          tally_synced_at?: string | null;
+          tally_voucher_number?: string | null;
+          total_gst?: number;
+          updated_at?: string | null;
+          vendor_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_orders_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_orders_rejected_by_fkey";
+            columns: ["rejected_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_orders_vendor_id_fkey";
+            columns: ["vendor_id"];
+            isOneToOne: false;
+            referencedRelation: "vendors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_items: {
+        Row: {
+          batch_number: string | null;
+          cgst_amount: number;
+          chemical_id: string | null;
+          created_at: string | null;
+          description: string | null;
+          discount_percent: number | null;
+          expiry_date: string | null;
+          gst_rate: number;
+          hsn_code: string | null;
+          id: string;
+          igst_amount: number;
+          item_id: string | null;
+          item_name: string;
+          manufacture_date: string | null;
+          purchase_order_id: string;
+          quantity: number;
+          rate: number;
+          sgst_amount: number;
+          tally_stock_item_name: string | null;
+          total: number;
+          unit: string;
+        };
+        Insert: {
+          batch_number?: string | null;
+          cgst_amount?: number;
+          chemical_id?: string | null;
+          created_at?: string | null;
+          description?: string | null;
+          discount_percent?: number | null;
+          expiry_date?: string | null;
+          gst_rate?: number;
+          hsn_code?: string | null;
+          id?: string;
+          igst_amount?: number;
+          item_id?: string | null;
+          item_name: string;
+          manufacture_date?: string | null;
+          purchase_order_id: string;
+          quantity?: number;
+          rate?: number;
+          sgst_amount?: number;
+          tally_stock_item_name?: string | null;
+          total?: number;
+          unit?: string;
+        };
+        Update: {
+          batch_number?: string | null;
+          cgst_amount?: number;
+          chemical_id?: string | null;
+          created_at?: string | null;
+          description?: string | null;
+          discount_percent?: number | null;
+          expiry_date?: string | null;
+          gst_rate?: number;
+          hsn_code?: string | null;
+          id?: string;
+          igst_amount?: number;
+          item_id?: string | null;
+          item_name?: string;
+          manufacture_date?: string | null;
+          purchase_order_id?: string;
+          quantity?: number;
+          rate?: number;
+          sgst_amount?: number;
+          tally_stock_item_name?: string | null;
+          total?: number;
+          unit?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_chemical_id_fkey";
+            columns: ["chemical_id"];
+            isOneToOne: false;
+            referencedRelation: "chemicals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_items_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey";
+            columns: ["purchase_order_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tally_sync_mappings: {
+        Row: {
+          created_at: string | null;
+          entity_type: string;
+          id: string;
+          lablink_id: string;
+          lablink_name: string;
+          last_synced_at: string | null;
+          sync_error: string | null;
+          sync_status: Database["public"]["Enums"]["tally_sync_status"];
+          tally_name: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          entity_type: string;
+          id?: string;
+          lablink_id: string;
+          lablink_name: string;
+          last_synced_at?: string | null;
+          sync_error?: string | null;
+          sync_status?: Database["public"]["Enums"]["tally_sync_status"];
+          tally_name: string;
+          updated_at?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          entity_type?: string;
+          id?: string;
+          lablink_id?: string;
+          lablink_name?: string;
+          last_synced_at?: string | null;
+          sync_error?: string | null;
+          sync_status?: Database["public"]["Enums"]["tally_sync_status"];
+          tally_name?: string;
+          updated_at?: string | null;
+        };
+        Relationships: [];
+      };
+      tally_sync_logs: {
+        Row: {
+          created_at: string | null;
+          created_by: string | null;
+          entity_id: string | null;
+          entity_name: string | null;
+          entity_type: string | null;
+          error_message: string | null;
+          id: string;
+          operation: string;
+          status: string;
+          tally_request_xml: string | null;
+          tally_response: string | null;
+        };
+        Insert: {
+          created_at?: string | null;
+          created_by?: string | null;
+          entity_id?: string | null;
+          entity_name?: string | null;
+          entity_type?: string | null;
+          error_message?: string | null;
+          id?: string;
+          operation: string;
+          status?: string;
+          tally_request_xml?: string | null;
+          tally_response?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+          created_by?: string | null;
+          entity_id?: string | null;
+          entity_name?: string | null;
+          entity_type?: string | null;
+          error_message?: string | null;
+          id?: string;
+          operation?: string;
+          status?: string;
+          tally_request_xml?: string | null;
+          tally_response?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tally_sync_logs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -2142,16 +2563,28 @@ export type Database = {
       };
       mark_password_changed: { Args: { p_user_id: string }; Returns: boolean };
       create_otp: {
-        Args: { p_email: string; p_otp: string };
-        Returns: undefined;
+        Args: { p_email: string; p_otp?: string };
+        Returns: string;
       };
       verify_otp: {
         Args: { p_email: string; p_otp: string };
-        Returns: Json;
+        Returns: boolean;
       };
       log_public_scan: {
         Args: { p_item_id: string };
         Returns: undefined;
+      };
+      kiosk_checkout: {
+        Args: { p_due_date?: string | null; p_item_id: string };
+        Returns: Json;
+      };
+      kiosk_return: {
+        Args: { p_issued_item_id: string };
+        Returns: Json;
+      };
+      update_item_repair_status: {
+        Args: { p_item_id: string; p_status: string };
+        Returns: Json;
       };
     };
     Enums: {
@@ -2186,6 +2619,13 @@ export type Database = {
         | "on_hold"
         | "completed"
         | "scrapped";
+      purchase_order_status:
+        | "draft"
+        | "pending_approval"
+        | "approved"
+        | "sent_to_tally"
+        | "rejected"
+        | "cancelled";
       request_status:
         | "pending"
         | "approved"
@@ -2193,6 +2633,11 @@ export type Database = {
         | "returned"
         | "return_pending";
       safety_level: "low" | "medium" | "high" | "hazardous";
+      tally_sync_status:
+        | "pending"
+        | "synced"
+        | "failed"
+        | "not_applicable";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2358,6 +2803,14 @@ export const Constants = {
         "completed",
         "scrapped",
       ],
+      purchase_order_status: [
+        "draft",
+        "pending_approval",
+        "approved",
+        "sent_to_tally",
+        "rejected",
+        "cancelled",
+      ],
       request_status: [
         "pending",
         "approved",
@@ -2366,6 +2819,7 @@ export const Constants = {
         "return_pending",
       ],
       safety_level: ["low", "medium", "high", "hazardous"],
+      tally_sync_status: ["pending", "synced", "failed", "not_applicable"],
     },
   },
 } as const;

@@ -32,9 +32,12 @@ interface Notification {
   id: string;
   title: string;
   message: string | null;
-  notification_type: string;
+  notification_type?: string | null;
+  type?: string | null;
   is_read: boolean;
   link: string | null;
+  related_entity_id?: string | null;
+  related_entity_type?: string | null;
   created_at: string;
 }
 
@@ -139,23 +142,28 @@ export function Header({
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    if (notification.link) {
-      navigate(notification.link);
+    const targetUrl = notification.link || 
+      (notification.related_entity_type === "borrow_request" ? "/my-requests" : 
+      (notification.related_entity_type === "item" && notification.related_entity_id ? `/items/${notification.related_entity_id}` : null));
+    
+    if (targetUrl) {
+      navigate(targetUrl);
       setIsOpen(false);
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-success" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-warning" />;
-      case "error":
-        return <XCircle className="h-4 w-4 text-destructive" />;
-      default:
-        return <Info className="h-4 w-4 text-info" />;
+  const getTypeIcon = (type?: string | null) => {
+    const t = (type || "").toLowerCase();
+    if (t.includes("success") || t.includes("approved")) {
+      return <CheckCircle className="h-4 w-4 text-success" />;
     }
+    if (t.includes("warning") || t.includes("low_stock") || t.includes("overdue")) {
+      return <AlertTriangle className="h-4 w-4 text-warning" />;
+    }
+    if (t.includes("error") || t.includes("rejected") || t.includes("damage")) {
+      return <XCircle className="h-4 w-4 text-destructive" />;
+    }
+    return <Info className="h-4 w-4 text-info" />;
   };
 
   return (

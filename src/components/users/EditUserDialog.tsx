@@ -149,6 +149,41 @@ export function EditUserDialog({
         if (roleError) throw roleError;
       }
 
+      // Update or upsert department in user_departments
+      if (departmentId) {
+        const { data: existingDept } = await supabase
+          .from("user_departments")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (existingDept && existingDept.length > 0) {
+          const { error: deptError } = await supabase
+            .from("user_departments")
+            .update({ department_id: departmentId })
+            .eq("user_id", user.id);
+
+          if (deptError) throw deptError;
+        } else {
+          const { error: deptError } = await supabase
+            .from("user_departments")
+            .insert({
+              user_id: user.id,
+              department_id: departmentId,
+            });
+
+          if (deptError) throw deptError;
+        }
+      } else {
+        // If department was unassigned/cleared, remove assignment
+        const { error: deptDeleteError } = await supabase
+          .from("user_departments")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (deptDeleteError) throw deptDeleteError;
+      }
+
       // Send welcome email if user was just activated
       const wasActivated = isActive && isVerified && (!user.is_active || !user.is_verified);
       if (wasActivated) {

@@ -14,7 +14,12 @@ import {
   CheckCircle,
   ArrowRight,
   Sparkles,
+  FlaskConical,
+  LayoutGrid,
+  User,
 } from "lucide-react";
+import { ScientificAnimatedBackground } from "@/components/landing/ScientificAnimatedBackground";
+import LineWaves from "@/components/landing/LineWaves";
 
 const features = [
   {
@@ -126,149 +131,137 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden selection:bg-primary/30">
-      {/* Navigation */}
+      {/* Navigation matching Reference Image */}
       <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100, damping: 20 }}
-        className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60"
+        initial={{ y: -60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="fixed top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-blue-50/80 dark:border-slate-800/80 transition-all"
       >
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 rounded-xl opacity-75 group-hover:opacity-100 blur-sm transition-opacity duration-300"></div>
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white">
-                <img
-                  src="/lablink-logo.jpg"
-                  alt="LabLink"
-                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-display text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                LabLink
-              </span>
-              <span className="text-[10px] text-blue-500 -mt-1 tracking-wider font-medium">
-                LAB SMART
-              </span>
-            </div>
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src="/lablink-logo.png"
+              alt="LabLink - Lab Smart"
+              className="h-10 w-auto object-contain"
+            />
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/catalog">
-              <Button variant="ghost" className="hidden sm:inline-flex hover:bg-primary/10 transition-colors">
-                Browse Catalog
-              </Button>
+          <div className="flex items-center gap-6">
+            <Link
+              to="/catalog"
+              className="text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              Browse Catalog
+            </Link>
+            <Link
+              to="/auth"
+              className="text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              Sign In
             </Link>
             <Link to="/auth">
-              <Button variant="ghost" className="hover:bg-primary/10 transition-colors">
-                Sign In
+              <Button
+                className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-5 py-2 h-auto shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition-all flex items-center gap-1.5"
+              >
+                Get Started
+                <ArrowRight className="h-4 w-4" />
               </Button>
-            </Link>
-            <Link to="/auth">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.7)] transition-shadow">
-                  Get Started
-                </Button>
-              </motion.div>
             </Link>
           </div>
         </div>
       </motion.nav>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center pt-24 pb-20">
-        {/* Animated Background Gradients (3D-like feel) */}
-        <div className="absolute inset-0 -z-10 overflow-hidden bg-background">
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [0, 90, 0],
-            }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute -left-[10%] top-[20%] h-[500px] w-[500px] rounded-full bg-primary/20 blur-[120px]"
-          />
-          <motion.div
-            animate={{
-              scale: [1, 1.5, 1],
-              rotate: [0, -90, 0],
-            }}
-            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-            className="absolute -right-[10%] bottom-[10%] h-[600px] w-[600px] rounded-full bg-cyan-500/20 blur-[130px]"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-        </div>
+      {/* Hero Section matching Reference Image */}
+      <section className="relative min-h-[92vh] isolate flex flex-col justify-center pt-24 pb-16 overflow-hidden">
+        {/* Animated Interactive Scientific LineWaves Background with Watermarks & Silk Wave */}
+        <ScientificAnimatedBackground
+          color1="#0284c7"
+          color2="#38bdf8"
+          color3="#2563eb"
+          speed={0.25}
+          lineCount={56}
+          lineWidth={1.4}
+          glow={0.5}
+          brightness={1.0}
+          highlight={0.85}
+          highlightWidth={1.2}
+          warpIntensity={0.9}
+          warpScale={1.35}
+          rotation={-26}
+          enableMouseInteraction={true}
+          clickRipple={true}
+          className="absolute inset-0 z-0"
+        />
 
         <motion.div
           style={{ y: heroY, opacity: heroOpacity }}
-          className="container mx-auto px-4 text-center z-10"
+          className="container mx-auto px-4 text-center z-10 flex flex-col items-center justify-center max-w-4xl"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex justify-center mb-6"
-          >
-            <Badge
-              variant="outline"
-              className="px-4 py-2 bg-background/50 backdrop-blur-md border-primary/30 text-primary shadow-[0_0_15px_rgba(59,130,246,0.2)]"
-            >
-              <Sparkles className="mr-2 h-4 w-4 text-cyan-400" />
-              Enterprise Lab Management Solution
-            </Badge>
-          </motion.div>
-
+          {/* Clean, Non-AI headline matching Reference Image */}
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="mx-auto max-w-5xl font-display text-5xl font-extrabold leading-tight tracking-tight md:text-6xl lg:text-7xl"
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]"
           >
             Laboratory Inventory
             <br />
-            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm">
-              and Assets Management System
-            </span>
+            <span className="text-[#2563eb]">and Assets Management</span>
+            <br />
+            <span className="text-[#2563eb]">System</span>
           </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl font-medium"
+          {/* Centered Flask Divider matching Reference Image: — ⚗️ — */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex items-center justify-center gap-3 my-5"
           >
-            Modernize your lab operations with real-time inventory tracking,
-            QR-based management, and comprehensive analytics. Built for
-            forward-thinking educational institutions and research facilities.
+            <div className="h-[1.5px] w-12 bg-blue-300/80 rounded-full" />
+            <FlaskConical className="h-5 w-5 text-blue-500" strokeWidth={1.8} />
+            <div className="h-[1.5px] w-12 bg-blue-300/80 rounded-full" />
+          </motion.div>
+
+          {/* Subtitle matching Reference Image */}
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.35 }}
+            className="max-w-2xl text-base sm:text-lg text-slate-600 dark:text-slate-300 font-normal leading-relaxed text-center"
+          >
+            Modernize your lab operations with real-time inventory tracking, QR-based
+            management, and comprehensive analytics. Built for forward-thinking
+            educational institutions and research facilities.
           </motion.p>
 
+          {/* CTA Action Buttons matching Reference Image */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.7 }}
-            className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
           >
-            <Link to="/catalog">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  size="xl"
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white border-0 shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] transition-all h-14 px-8 text-lg"
-                >
-                  Browse Equipment Catalog
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </motion.div>
+            <Link to="/catalog" className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-medium shadow-[0_8px_20px_rgba(37,99,235,0.3)] hover:shadow-[0_10px_24px_rgba(37,99,235,0.4)] transition-all flex items-center justify-center gap-2"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span>Browse Catalog</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </Link>
-            <Link to="/auth">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  variant="outline"
-                  size="xl"
-                  className="w-full sm:w-auto h-14 px-8 text-lg border-2 border-primary/20 bg-background/50 backdrop-blur-sm hover:bg-primary/5 hover:border-primary/40 transition-colors"
-                >
-                  Get Started Free
-                </Button>
-              </motion.div>
+
+            <Link to="/auth" className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-white/95 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white border border-slate-200/90 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.04)] font-medium transition-all flex items-center justify-center gap-2"
+              >
+                <User className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                <span>Sign In</span>
+              </Button>
             </Link>
           </motion.div>
         </motion.div>
@@ -436,23 +429,14 @@ export default function Index() {
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 mb-12">
             <div className="flex flex-col gap-4">
               <Link to="/" className="flex items-center gap-3 group w-fit">
-                <div className="relative">
-                  <div className="absolute -inset-0 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg opacity-50 blur-sm group-hover:opacity-100 transition-opacity"></div>
-                  <div className="relative flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden bg-white shadow-md">
-                    <img src="/lablink-logo.jpg" alt="LabLink" className="h-full w-full object-cover" />
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-display text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                    LabLink
-                  </span>
-                  <span className="text-[10px] text-blue-500 -mt-1 tracking-wider font-medium">
-                    LAB SMART
-                  </span>
-                </div>
+                <img
+                  src="/lablink-logo.png"
+                  alt="LabLink - Lab Smart"
+                  className="h-9 w-auto object-contain"
+                />
               </Link>
               <p className="text-sm text-muted-foreground max-w-xs mt-2">
-                Enterprise Lab Management Solution streamlining laboratory operations with cutting-edge technology.
+                Modernizing laboratory operations with real-time inventory tracking, QR-based management, and comprehensive analytics.
               </p>
             </div>
             

@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import jsQR from "jsqr";
 
 interface QRScannerProps {
   open: boolean;
@@ -153,20 +154,16 @@ export function QRScanner({
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      // Use jsQR library loaded via CDN
       try {
-        const jsQRFn = (window as any).jsQR;
-        if (typeof jsQRFn === "function") {
-          const code = jsQRFn(
-            imageData.data,
-            imageData.width,
-            imageData.height,
-          );
+        const code = jsQR(
+          imageData.data,
+          imageData.width,
+          imageData.height,
+        );
 
-          if (code) {
-            handleScanResult(code.data);
-            return;
-          }
+        if (code) {
+          handleScanResult(code.data);
+          return;
         }
       } catch (e) {
         // Continue scanning
@@ -175,17 +172,7 @@ export function QRScanner({
       animationFrameRef.current = requestAnimationFrame(scan);
     };
 
-    // Load jsQR library if not loaded
-    if (typeof (window as any).jsQR === "undefined") {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
-      script.onload = () => {
-        animationFrameRef.current = requestAnimationFrame(scan);
-      };
-      document.head.appendChild(script);
-    } else {
-      animationFrameRef.current = requestAnimationFrame(scan);
-    }
+    animationFrameRef.current = requestAnimationFrame(scan);
   }, [scanResult]);
 
   const handleScanResult = async (data: string) => {
@@ -193,9 +180,63 @@ export function QRScanner({
     setIsValidating(true);
 
     try {
+      let rawData = data.trim();
+
+      let isUnitScan = false;
+      let unitId = "";
+
+      // Check URL format: "https://.../scan/<id>" or "https://.../scan/unit/<unitId>"
+      if (rawData.includes("/scan/unit/")) {
+        const parts = rawData.split("/scan/unit/");
+        unitId = parts[parts.length - 1].split("?")[0].split("#")[0].replace(/\/+$/, "").trim();
+        isUnitScan = true;
+      } else if (rawData.includes("/scan/")) {
+        const parts = rawData.split("/scan/");
+        rawData = parts[parts.length - 1].split("?")[0].split("#")[0].replace(/\/+$/, "").trim();
+        if (rawData.startsWith("unit/")) {
+          unitId = rawData.replace(/^unit\//, "").trim();
+          isUnitScan = true;
+        }
+      } else if (rawData.startsWith("unit/")) {
+        unitId = rawData.replace(/^unit\//, "").trim();
+        isUnitScan = true;
+      }
+
+      if (isUnitScan && unitId) {
+        const isUnitUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId);
+        let unitQuery = supabase
+          .from("item_units")
+          .select("id, unit_serial_number, unit_number, status, current_location, item:items(id, name, item_code, status, current_quantity, category:categories(name))");
+
+        if (isUnitUUID) {
+          unitQuery = unitQuery.or(`id.eq.${unitId},unit_serial_number.eq.${unitId}`);
+        } else {
+          unitQuery = unitQuery.eq("unit_serial_number", unitId);
+        }
+
+        const { data: unitRecord } = await unitQuery.maybeSingle();
+
+        if (unitRecord && unitRecord.item) {
+          const parentItem = unitRecord.item as any;
+          setScanResult({
+            type: "lablink_unit",
+            id: parentItem.id,
+            code: parentItem.item_code,
+            name: `${parentItem.name} (Unit #${unitRecord.unit_number || unitRecord.unit_serial_number})`,
+            status: unitRecord.status || parentItem.status,
+          });
+
+          if (navigator.vibrate) navigator.vibrate(100);
+          toast({ title: "Unit Found!", description: parentItem.name });
+          if (onScanSuccess) onScanSuccess(parentItem.id, parentItem);
+          setIsValidating(false);
+          return;
+        }
+      }
+
       // ── Handle LABLINK format: "LABLINK:uuid:unitNum:timestamp" ──
-      if (data.startsWith("LABLINK:")) {
-        const parts = data.split(":");
+      if (rawData.startsWith("LABLINK:")) {
+        const parts = rawData.split(":");
         const itemId = parts[1]; // UUID of the parent item
 
         if (itemId) {
@@ -232,63 +273,72 @@ export function QRScanner({
       // ── Handle JSON format: {"type":"lablink_item","id":"uuid"} ──
       let parsedData: any;
       try {
-        parsedData = JSON.parse(data);
+        parsedData = JSON.parse(rawData);
       } catch {
-        parsedData = { id: data };
+        parsedData = { id: rawData };
       }
 
-      if (parsedData.type === "lablink_item" && parsedData.id) {
-        const { data: item, error: fetchError } = await supabase
-          .from("items")
-          .select(
-            "id, name, item_code, status, current_quantity, category:categories(name)",
-          )
-          .eq("id", parsedData.id)
-          .single();
+      const searchId = (parsedData.id || parsedData.code || parsedData.item_code || rawData).toString().trim();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchId);
 
-        if (fetchError || !item) {
-          setError("Item not found in system. The QR code may be outdated.");
+      let query = supabase
+        .from("items")
+        .select("id, name, item_code, status, current_quantity, category:categories(name)");
+
+      if (isUUID) {
+        query = query.or(`id.eq.${searchId},item_code.eq.${searchId}`);
+      } else {
+        query = query.eq("item_code", searchId);
+      }
+
+      const { data: item, error: fetchError } = await query.maybeSingle();
+
+      if (fetchError || !item) {
+        // Fallback: check item_units in case searchId matches unit_serial_number or unit UUID
+        let fbQuery = supabase
+          .from("item_units")
+          .select("id, unit_serial_number, unit_number, status, current_location, item:items(id, name, item_code, status, current_quantity, category:categories(name))");
+
+        if (isUUID) {
+          fbQuery = fbQuery.or(`id.eq.${searchId},unit_serial_number.eq.${searchId}`);
+        } else {
+          fbQuery = fbQuery.eq("unit_serial_number", searchId);
+        }
+
+        const { data: fbUnit } = await fbQuery.maybeSingle();
+        if (fbUnit && fbUnit.item) {
+          const parentItem = fbUnit.item as any;
+          setScanResult({
+            type: "lablink_unit",
+            id: parentItem.id,
+            code: parentItem.item_code,
+            name: `${parentItem.name} (Unit #${fbUnit.unit_number || fbUnit.unit_serial_number})`,
+            status: fbUnit.status || parentItem.status,
+          });
+
+          if (navigator.vibrate) navigator.vibrate(100);
+          toast({ title: "Unit Found!", description: parentItem.name });
+          if (onScanSuccess) onScanSuccess(parentItem.id, parentItem);
           setIsValidating(false);
           return;
         }
 
-        setScanResult({
-          type: "lablink_item",
-          id: item.id,
-          code: item.item_code,
-          name: item.name,
-          status: item.status,
-        });
-
-        if (navigator.vibrate) navigator.vibrate(100);
-        toast({ title: "Item Found!", description: item.name });
-        if (onScanSuccess) onScanSuccess(item.id, item);
-      } else {
-        // ── Fallback: try as item_code or UUID ──
-        const searchId = parsedData.id || data;
-        const { data: item } = await supabase
-          .from("items")
-          .select("id, name, item_code, status")
-          .or(`item_code.eq.${searchId},id.eq.${searchId}`)
-          .single();
-
-        if (item) {
-          setScanResult({
-            type: "lablink_item",
-            id: item.id,
-            code: item.item_code,
-            name: item.name,
-            status: item.status,
-          });
-          if (navigator.vibrate) navigator.vibrate(100);
-          toast({ title: "Item Found!", description: item.name });
-          if (onScanSuccess) onScanSuccess(item.id, item);
-        } else {
-          setError(
-            "Invalid QR code. This doesn't appear to be a LabLink item.",
-          );
-        }
+        setError("Item not found in system. The QR code may be outdated.");
+        setIsValidating(false);
+        return;
       }
+
+      setScanResult({
+        type: "lablink_item",
+        id: item.id,
+        code: item.item_code,
+        name: item.name,
+        status: item.status,
+      });
+
+      if (navigator.vibrate) navigator.vibrate(100);
+      toast({ title: "Item Found!", description: item.name });
+      if (onScanSuccess) onScanSuccess(item.id, item);
     } catch (err) {
       console.error("Validation error:", err);
       setError("Failed to validate QR code. Please try again.");

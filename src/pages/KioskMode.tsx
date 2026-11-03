@@ -197,45 +197,37 @@ export default function KioskMode() {
   };
 
   // Handle borrow
+  // Handle borrow via SECURITY DEFINER RPC
   const handleBorrow = async () => {
     if (!scannedItem || !user) return;
     setIsProcessing(true);
 
     try {
-      // Check if already borrowed by this user
-      const { data: existing } = await supabase
-        .from("issued_items")
-        .select("id")
-        .eq("item_id", scannedItem.id)
-        .eq("issued_to", user.id)
-        .eq("status", "active")
-        .is("returned_date", null)
-        .maybeSingle();
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 7);
 
-      if (existing) {
+      // Invoke SECURITY DEFINER RPC to handle atomic quantity decrement and checkout record creation
+      const { data, error } = await supabase.rpc("kiosk_checkout", {
+        p_item_id: scannedItem.id,
+        p_due_date: dueDate.toISOString(),
+      });
+
+      if (error) throw error;
+
+      const res = data as { success?: boolean; error?: string; message?: string } | null;
+
+      if (!res?.success) {
         setResultMessage({
           success: false,
-          message: "You already have this item checked out.",
+          message: res?.error || "Failed to check out item.",
         });
         setStep("result");
         return;
       }
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 7);
-      const { error } = await supabase.from("issued_items").insert({
-        item_id: scannedItem.id,
-        issued_to: user.id,
-        issued_by: user.id,
-        due_date: tomorrow.toISOString(),
-        status: "active",
-      } as any);
-
-      if (error) throw error;
-
       setResultMessage({
         success: true,
-        message: `"${scannedItem.name}" checked out successfully!`,
+        message: res.message || `"${scannedItem.name}" checked out successfully!`,
       });
       setStep("result");
       fetchRecentActivity();
@@ -250,14 +242,14 @@ export default function KioskMode() {
     }
   };
 
-  // Handle return
+  // Handle return via SECURITY DEFINER RPC
   const handleReturn = async () => {
     if (!scannedItem || !user) return;
     setIsProcessing(true);
 
     try {
-      // Find the active issued record
-      const { data: record } = await supabase
+      // Find the active issued record for this user and item
+      const { data: record, error: findError } = await supabase
         .from("issued_items")
         .select("id")
         .eq("item_id", scannedItem.id)
@@ -265,6 +257,8 @@ export default function KioskMode() {
         .eq("status", "active")
         .is("returned_date", null)
         .maybeSingle();
+
+      if (findError) throw findError;
 
       if (!record) {
         setResultMessage({
@@ -275,19 +269,27 @@ export default function KioskMode() {
         return;
       }
 
-      const { error } = await supabase
-        .from("issued_items")
-        .update({
-          returned_date: new Date().toISOString(),
-          status: "returned",
-        })
-        .eq("id", record.id);
+      // Invoke SECURITY DEFINER RPC to return the item and restore inventory count
+      const { data, error } = await supabase.rpc("kiosk_return", {
+        p_issued_item_id: record.id,
+      });
 
       if (error) throw error;
 
+      const res = data as { success?: boolean; error?: string; message?: string } | null;
+
+      if (!res?.success) {
+        setResultMessage({
+          success: false,
+          message: res?.error || "Failed to return item.",
+        });
+        setStep("result");
+        return;
+      }
+
       setResultMessage({
         success: true,
-        message: `"${scannedItem.name}" returned successfully!`,
+        message: res.message || `"${scannedItem.name}" returned successfully!`,
       });
       setStep("result");
       fetchRecentActivity();

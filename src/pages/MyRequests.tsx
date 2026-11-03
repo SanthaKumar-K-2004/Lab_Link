@@ -61,6 +61,7 @@ import {
   FileText,
   FileSpreadsheet,
   ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import { format, formatDistanceToNow, addDays } from "date-fns";
 import {
@@ -105,9 +106,9 @@ const defaultFormData = {
   purpose: "",
 };
 
-/** Students can borrow at most half the current stock */
-const getMaxBorrowable = (currentQty: number) =>
-  Math.max(1, Math.floor(currentQty / 2));
+/** Students can borrow at most half the current stock (0 if none available) */
+export const getMaxBorrowable = (currentQty: number) =>
+  currentQty > 0 ? Math.max(1, Math.floor(currentQty / 2)) : 0;
 
 export default function MyRequests() {
   const { toast } = useToast();
@@ -207,8 +208,16 @@ export default function MyRequests() {
     // Validate quantity against half-stock limit
     const selItem = items.find((i) => i.id === formData.item_id);
     if (selItem) {
+      if ((selItem.current_quantity || 0) <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Out of Stock",
+          description: "This item is currently out of stock and cannot be requested.",
+        });
+        return;
+      }
       const maxAllowed = getMaxBorrowable(selItem.current_quantity);
-      if (formData.quantity > maxAllowed) {
+      if (formData.quantity > maxAllowed || maxAllowed < 1) {
         toast({
           variant: "destructive",
           title: "Quantity Exceeds Limit",
@@ -589,8 +598,16 @@ export default function MyRequests() {
               </Select>
             </div>
 
+            {/* Out of Stock Warning */}
+            {selectedItem && (selectedItem.current_quantity || 0) <= 0 && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-destructive text-sm font-medium flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>This item is currently out of stock and cannot be requested.</span>
+              </div>
+            )}
+
             {/* Quantity */}
-            {selectedItem && (
+            {selectedItem && (selectedItem.current_quantity || 0) > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="quantity">
                   Quantity (max{" "}
@@ -684,7 +701,15 @@ export default function MyRequests() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button
+              onClick={handleSubmit}
+              disabled={
+                isSubmitting ||
+                !selectedItem ||
+                (selectedItem.current_quantity || 0) <= 0 ||
+                getMaxBorrowable(selectedItem.current_quantity) <= 0
+              }
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

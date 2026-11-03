@@ -47,7 +47,8 @@ interface ItemData {
   status: string;
   condition: string;
   current_quantity: number;
-  minimum_quantity: number;
+  reorder_threshold: number | null;
+  minimum_quantity?: number | null;
   unit: string | null;
   is_borrowable: boolean;
   image_url: string | null;
@@ -60,7 +61,8 @@ interface ItemData {
   lab_location: string | null;
   shelf_location: string | null;
   purchase_date: string | null;
-  warranty_expiry: string | null;
+  warranty_until: string | null;
+  warranty_expiry?: string | null;
   category_id: string | null;
   department_id: string | null;
   category?: { name: string; color_hex: string | null } | null;
@@ -230,13 +232,15 @@ export default function PublicItemDetail() {
 
   useEffect(() => {
     if (progressRef.current && item) {
-      const width = Math.min(
-        (item.current_quantity / Math.max(item.minimum_quantity * 2, 1)) * 100,
-        100,
-      );
-      progressRef.current.style.width = `${width}%`;
+      const minStock = Number(item.reorder_threshold ?? item.minimum_quantity ?? 0);
+      const currentQty = Number(item.current_quantity ?? 0);
+      const targetMax = Math.max(minStock * 2, currentQty, 1);
+      const calculatedWidth = (currentQty / targetMax) * 100;
+      const safeWidth = Math.min(Math.max(isNaN(calculatedWidth) ? 0 : calculatedWidth, 0), 100);
+
+      progressRef.current.style.width = `${safeWidth}%`;
       progressRef.current.style.backgroundImage =
-        item.current_quantity > item.minimum_quantity
+        currentQty > minStock
           ? "linear-gradient(to right, #10b981, #34d399)"
           : "linear-gradient(to right, #f59e0b, #f87171)";
     }
@@ -497,7 +501,7 @@ export default function PublicItemDetail() {
                   <span>
                     Min Stock:{" "}
                     <span className="text-foreground font-medium">
-                      {item.minimum_quantity}
+                      {item.reorder_threshold ?? item.minimum_quantity ?? 0}
                     </span>
                   </span>
                 </div>
@@ -592,8 +596,12 @@ export default function PublicItemDetail() {
                   icon={Shield}
                   label="Warranty Expiry"
                   value={
-                    item.warranty_expiry
-                      ? new Date(item.warranty_expiry).toLocaleDateString()
+                    item.warranty_until || item.warranty_expiry
+                      ? (() => {
+                          const dateVal = item.warranty_until || (item.warranty_expiry as string);
+                          const parsed = new Date(dateVal);
+                          return isNaN(parsed.getTime()) ? null : parsed.toLocaleDateString();
+                        })()
                       : null
                   }
                 />

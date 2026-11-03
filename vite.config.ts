@@ -6,9 +6,16 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  esbuild: {
+    drop: mode === "production" ? ["console", "debugger"] : [],
+  },
   server: {
     host: "::",
     port: 8080,
+    headers: {
+      "X-Frame-Options": "DENY",
+      "Content-Security-Policy": "frame-ancestors 'none';",
+    },
   },
   plugins: [
     react(),
@@ -62,7 +69,7 @@ export default defineConfig(({ mode }) => ({
           {
             // Cache Supabase API responses with NetworkFirst (fresh data preferred)
             urlPattern:
-              /^https:\/\/ymxazqprqrjbhmrkgbgh\.supabase\.co\/rest\/v1\/.*/i,
+              /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
             handler: "NetworkFirst",
             options: {
               cacheName: "supabase-api-cache",
@@ -147,5 +154,15 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-charts": ["recharts"],
+          "vendor-export": ["jspdf", "jspdf-autotable", "xlsx"],
+          "vendor-supabase": ["@supabase/supabase-js", "@tanstack/react-query"],
+        },
+      },
+    },
   },
 }));

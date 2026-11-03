@@ -48,32 +48,53 @@ export default function QRScan() {
   const animationRef = useRef<number | null>(null);
   
   const navigate = useNavigate();
+  const RECENT_SCANS_KEY = "lablink_recent_scans";
 
-  // Fetch recent scans on mount
+  // Load user scan history from localStorage on mount
   useEffect(() => {
-    fetchRecentScans();
-  }, []);
-
-  // Cleanup camera on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const fetchRecentScans = async () => {
     try {
-      const { data } = await supabase
-        .from("items")
-        .select("id, name, item_code, status, current_quantity, storage_location, category:categories(name), department:departments(name)")
-        .order("updated_at", { ascending: false })
-        .limit(5);
-      
-      if (data) {
-        setRecentScans(data as ScannedItem[]);
+      const stored = localStorage.getItem(RECENT_SCANS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentScans(parsed);
+        }
       }
     } catch (error) {
-      console.error("Error fetching recent scans:", error);
+      console.error("Error loading recent scans from localStorage:", error);
+    }
+  }, []);
+
+  const recordRecentScan = (item: ScannedItem) => {
+    setRecentScans((prev) => {
+      // Omit physical shelf/storage coordinates from localStorage to prevent physical asset location disclosure (SEC-07)
+      const sanitizedItem: ScannedItem = {
+        id: item.id,
+        name: item.name,
+        item_code: item.item_code,
+        status: item.status,
+        current_quantity: item.current_quantity,
+        category: item.category,
+        department: item.department,
+      };
+      const filtered = prev.filter((i) => i.id !== item.id || i.name !== item.name);
+      const updated = [sanitizedItem, ...filtered].slice(0, 10);
+      try {
+        localStorage.setItem(RECENT_SCANS_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.error("Error saving scan to localStorage:", err);
+      }
+      return updated;
+    });
+  };
+
+  const clearRecentScans = () => {
+    try {
+      localStorage.removeItem(RECENT_SCANS_KEY);
+      setRecentScans([]);
+      toast.success("Recent scan history cleared");
+    } catch (err) {
+      console.error("Error clearing recent scans:", err);
     }
   };
 
@@ -151,40 +172,144 @@ export default function QRScan() {
     setIsLoading(true);
     
     try {
-      // Parse QR data - might be JSON or just an item code/ID
-      let searchId = code;
+      // Parse QR data - might be JSON, URL (/scan/:id or /scan/unit/:unitId), LABLINK format, or item code/ID
+      let searchId = code.trim();
+      let isUnitScan = false;
+      let unitId = "";
+
+      // 1. Check for /scan/unit/:unitId URL structure
+      if (searchId.includes("/scan/unit/")) {
+        const parts = searchId.split("/scan/unit/");
+        unitId = parts[parts.length - 1].split("?")[0].split("#")[0].replace(/\/+$/, "").trim();
+        isUnitScan = true;
+      } else if (searchId.includes("/scan/")) {
+        const parts = searchId.split("/scan/");
+        searchId = parts[parts.length - 1].split("?")[0].split("#")[0].replace(/\/+$/, "").trim();
+        if (searchId.startsWith("unit/")) {
+          unitId = searchId.replace(/^unit\//, "").trim();
+          isUnitScan = true;
+        }
+      } else if (searchId.startsWith("LABLINK:")) {
+        const parts = searchId.split(":");
+        if (parts.length >= 2) {
+          if (parts[1] === "unit" && parts[2]) {
+            unitId = parts[2].trim();
+            isUnitScan = true;
+          } else {
+            searchId = parts[1].trim();
+          }
+        }
+      } else if (searchId.startsWith("unit/")) {
+        unitId = searchId.replace(/^unit\//, "").trim();
+        isUnitScan = true;
+      }
+
+      // Check if data is JSON payload
       try {
         const parsed = JSON.parse(code);
-        searchId = parsed.id || parsed.item_code || code;
+        if (parsed.unit_id) {
+          unitId = parsed.unit_id;
+          isUnitScan = true;
+        } else {
+          searchId = parsed.id || parsed.item_code || searchId;
+        }
       } catch {
-        // Not JSON, use as-is
+        // Not JSON, use extracted searchId/unitId
+      }
+
+      // 2. If it's a specific unit scan, query item_units joining items
+      if (isUnitScan && unitId) {
+        const isUnitUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId);
+        let unitQuery = supabase
+          .from("item_units")
+          .select("id, unit_serial_number, unit_number, status, current_location, item:items(id, name, item_code, status, current_quantity, storage_location, category:categories(name), department:departments(name))");
+
+        if (isUnitUUID) {
+          unitQuery = unitQuery.or(`id.eq.${unitId},unit_serial_number.eq.${unitId}`);
+        } else {
+          unitQuery = unitQuery.eq("unit_serial_number", unitId);
+        }
+
+        const { data: unitRecord } = await unitQuery.maybeSingle();
+
+        if (unitRecord && unitRecord.item) {
+          const parentItem = unitRecord.item as any;
+          const foundUnit: ScannedItem = {
+            id: parentItem.id,
+            name: `${parentItem.name} (Unit #${unitRecord.unit_number || unitRecord.unit_serial_number})`,
+            item_code: parentItem.item_code,
+            status: unitRecord.status || parentItem.status,
+            current_quantity: parentItem.current_quantity,
+            storage_location: unitRecord.current_location || parentItem.storage_location,
+            category: parentItem.category,
+            department: parentItem.department,
+          };
+          setScannedItem(foundUnit);
+          toast.success("Unit found!", { description: foundUnit.name });
+          recordRecentScan(foundUnit);
+          return;
+        }
       }
       
-      // Try to find item by item_code or id
-      const { data, error } = await supabase
+      // 3. General item search (validate UUID format to prevent Postgres 22P02 error)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchId);
+      
+      let query = supabase
         .from("items")
-        .select("id, name, item_code, status, current_quantity, storage_location, category:categories(name), department:departments(name)")
-        .or(`item_code.eq.${searchId},id.eq.${searchId}`)
-        .single();
+        .select("id, name, item_code, status, current_quantity, storage_location, category:categories(name), department:departments(name)");
 
-      if (error || !data) {
-        toast.error("Item not found", {
-          description: `No item found with code: ${searchId}`
+      if (isUUID) {
+        query = query.or(`id.eq.${searchId},item_code.eq.${searchId}`);
+      } else {
+        query = query.eq("item_code", searchId);
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      if (data) {
+        const item = data as ScannedItem;
+        setScannedItem(item);
+        toast.success("Item found!", {
+          description: item.name
         });
-        setScannedItem(null);
+        recordRecentScan(item);
         return;
       }
 
-      setScannedItem(data as ScannedItem);
-      toast.success("Item found!", {
-        description: data.name
-      });
+      // 4. Fallback: check item_units in case searchId matches unit_serial_number or unit UUID
+      let fallbackUnitQuery = supabase
+        .from("item_units")
+        .select("id, unit_serial_number, unit_number, status, current_location, item:items(id, name, item_code, status, current_quantity, storage_location, category:categories(name), department:departments(name))");
 
-      // Add to recent scans
-      setRecentScans(prev => {
-        const filtered = prev.filter(i => i.id !== data.id);
-        return [data as ScannedItem, ...filtered].slice(0, 5);
+      if (isUUID) {
+        fallbackUnitQuery = fallbackUnitQuery.or(`id.eq.${searchId},unit_serial_number.eq.${searchId}`);
+      } else {
+        fallbackUnitQuery = fallbackUnitQuery.eq("unit_serial_number", searchId);
+      }
+
+      const { data: fallbackUnit } = await fallbackUnitQuery.maybeSingle();
+      if (fallbackUnit && fallbackUnit.item) {
+        const parentItem = fallbackUnit.item as any;
+        const foundUnit: ScannedItem = {
+          id: parentItem.id,
+          name: `${parentItem.name} (Unit #${fallbackUnit.unit_number || fallbackUnit.unit_serial_number})`,
+          item_code: parentItem.item_code,
+          status: fallbackUnit.status || parentItem.status,
+          current_quantity: parentItem.current_quantity,
+          storage_location: fallbackUnit.current_location || parentItem.storage_location,
+          category: parentItem.category,
+          department: parentItem.department,
+        };
+        setScannedItem(foundUnit);
+        toast.success("Unit found!", { description: foundUnit.name });
+        recordRecentScan(foundUnit);
+        return;
+      }
+
+      toast.error("Item not found", {
+        description: `No item or unit found with code: ${searchId}`
       });
+      setScannedItem(null);
     } catch (error) {
       console.error("Error scanning item:", error);
       toast.error("Error scanning item");
@@ -411,20 +536,27 @@ export default function QRScan() {
           </Card>
         </div>
 
-        {/* Recent Items */}
+        {/* Recent Scans */}
         <Card className="dashboard-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Items</CardTitle>
-            <CardDescription>
-              Recently accessed inventory items
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Recent Scans</CardTitle>
+              <CardDescription>
+                Your recent QR scan history
+              </CardDescription>
+            </div>
+            {recentScans.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearRecentScans}>
+                Clear History
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {recentScans.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {recentScans.map((item) => (
                   <button
-                    key={item.id}
+                    key={`${item.id}-${item.name}`}
                     onClick={() => navigate(`/items/${item.id}`)}
                     className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all text-left group"
                   >
@@ -445,7 +577,7 @@ export default function QRScan() {
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-                No recent items
+                No recent scans yet. Scanned items will appear here.
               </p>
             )}
           </CardContent>

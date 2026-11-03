@@ -205,6 +205,36 @@ export default function Repairs() {
       }
       if (newStatus === "completed") {
         updateData.actual_completion = new Date().toISOString();
+        const rec = records.find((r) => r.id === id);
+        if (rec?.item_id) {
+          const { error: rpcError } = await supabase.rpc("update_item_repair_status", {
+            p_item_id: rec.item_id,
+            p_status: "available",
+          });
+          if (rpcError) {
+            console.warn("RPC update_item_repair_status failed, falling back to direct update:", rpcError);
+            await supabase
+              .from("items")
+              .update({ status: "available" })
+              .eq("id", rec.item_id)
+              .eq("status", "under_maintenance");
+          }
+        }
+      } else if (newStatus === "in_progress") {
+        const rec = records.find((r) => r.id === id);
+        if (rec?.item_id) {
+          const { error: rpcError } = await supabase.rpc("update_item_repair_status", {
+            p_item_id: rec.item_id,
+            p_status: "under_maintenance",
+          });
+          if (rpcError) {
+            console.warn("RPC update_item_repair_status failed, falling back to direct update:", rpcError);
+            await supabase
+              .from("items")
+              .update({ status: "under_maintenance" })
+              .eq("id", rec.item_id);
+          }
+        }
       }
 
       const { error } = await supabase

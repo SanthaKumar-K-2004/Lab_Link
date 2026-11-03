@@ -52,23 +52,46 @@ export interface SyncResult {
 // Low-level HTTP POST to Tally
 // ==========================================
 async function postToTally(xml: string, config: TallyConfig): Promise<string> {
-  const url = `http://${config.host}:${config.port}`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/xml",
-    },
-    body: xml,
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Tally HTTP error: ${response.status} ${response.statusText}`,
-    );
+  // Validate host against prohibited metadata addresses to prevent SSRF (SEC-05)
+  const normalizedHost = config.host.replace(/^https?:\/\//i, "").split(":")[0].toLowerCase();
+  if (normalizedHost === "169.254.169.254" || normalizedHost === "metadata.google.internal") {
+    throw new Error("Prohibited host: Cloud instance metadata endpoints cannot be targeted.");
   }
 
-  return await response.text();
+  const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+  const protocol = config.host.startsWith("http://") || config.host.startsWith("https://") ? "" : "http://";
+  const url = `${protocol}${config.host}:${config.port}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/xml",
+      },
+      body: xml,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Tally HTTP error: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return await response.text();
+  } catch (err: any) {
+    if (isHttps && url.startsWith("http://")) {
+      throw new Error(
+        `Mixed Content Blocked: Browser cannot connect to insecure Tally endpoint (${url}) from an HTTPS origin. ` +
+        `Configure an HTTPS reverse proxy, Edge Function relay, or local connector daemon.`
+      );
+    }
+    if (err.name === "TypeError" && (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError"))) {
+      throw new Error(
+        `Cannot reach Tally at ${url}. Ensure TallyPrime is running with XML/ODBC Server enabled on port ${config.port} and CORS is allowed.`
+      );
+    }
+    throw err;
+  }
 }
 
 // ==========================================

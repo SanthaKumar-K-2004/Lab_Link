@@ -236,19 +236,27 @@ export default function ItemFormPage() {
       return `ITM-${timestamp}-${random}`;
     };
 
-    const itemData = {
+    const rawPrice = formData.purchase_price ? parseFloat(formData.purchase_price) : null;
+    const parsedPrice = rawPrice !== null && !isNaN(rawPrice) ? rawPrice : null;
+
+    const itemData: any = {
       ...formData,
-      // Auto-generate item_code if creating new item
-      item_code: isEdit ? (formData as any).item_code : generateItemCode(),
-      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
+      purchase_price: parsedPrice,
       purchase_date: formData.purchase_date || null,
       warranty_until: formData.warranty_until || null,
       category_id: formData.category_id || null,
-      created_by: user?.id,
       safety_level: formData.safety_level as "low" | "medium" | "high" | "hazardous",
       status: formData.status as "available" | "borrowed" | "under_maintenance" | "damaged" | "archived",
       condition: formData.condition as "new" | "excellent" | "good" | "fair" | "poor" | "damaged",
     };
+
+    if (isEdit) {
+      delete itemData.created_by;
+      delete itemData.id;
+    } else {
+      itemData.created_by = user?.id;
+      itemData.item_code = generateItemCode();
+    }
 
     try {
       if (isEdit) {

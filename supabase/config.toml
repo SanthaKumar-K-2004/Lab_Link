@@ -1,13 +1,20 @@
-project_id = "qykkaocwudcnfwkpudxl"
+project_id = "juruukjdneakhhtzhsiw"
 
 [functions.send-email]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.setup-admin]
 verify_jwt = false
 
 [functions.delete-user]
-verify_jwt = false
+verify_jwt = true
+
+[functions.enrich-items]
+verify_jwt = true
+
+[functions.chat]
+verify_jwt = true
+

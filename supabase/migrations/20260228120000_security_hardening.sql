@@ -37,6 +37,7 @@ DROP POLICY IF EXISTS "Users can read their own OTP" ON public.otp_verifications
 DROP POLICY IF EXISTS "System can verify OTP" ON public.otp_verifications;
 
 -- Create a SECURITY DEFINER function for OTP creation (rate-limited)
+DROP FUNCTION IF EXISTS public.create_otp(TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.create_otp(
   p_email TEXT,
   p_otp TEXT
@@ -75,6 +76,7 @@ END;
 $$;
 
 -- Create a SECURITY DEFINER function for OTP verification
+DROP FUNCTION IF EXISTS public.verify_otp(TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.verify_otp(
   p_email TEXT,
   p_otp TEXT

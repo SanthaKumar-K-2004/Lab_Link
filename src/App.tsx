@@ -79,7 +79,7 @@ const App = () => (
             <Route
               path="/kiosk"
               element={
-                <ProtectedRoute allowedRoles={["admin", "staff"]}>
+                <ProtectedRoute allowedRoles={["admin", "staff", "student"]}>
                   <KioskMode />
                 </ProtectedRoute>
               }

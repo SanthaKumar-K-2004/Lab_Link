@@ -23,4 +23,57 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Supabase temporary files
+supabase/.temp/
+
+# Agent and tooling caches
+.adal/
+.agent/
+.agents/
+.augment/
+.claude/
+.cline/
+.codebuddy/
+.codex/
+.commandcode/
+.continue/
+.crush/
+.cursor/
+.factory/
+.gemini/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openclaude/
+.opencode/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.skills/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills/
+skills-lock.json
+
+.vercel
+.env*
+
+# Local test execution scripts and seed data
+scripts/
+supabase/seed_test_data.sql

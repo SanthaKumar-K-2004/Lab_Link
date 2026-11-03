@@ -45,13 +45,12 @@ export default function PublicScanPage() {
       
       setData({ ...item, available_units: count || 0 });
       
-      // Log scan activity
-      await supabase.from("activity_logs").insert({
-        entity_type: "item",
-        entity_id: id,
-        action: "scanned",
-        description: "QR code was scanned"
-      });
+      // Log scan activity via rate-limited SECURITY DEFINER RPC
+      try {
+        await supabase.rpc("log_public_scan", { p_item_id: id });
+      } catch (logErr) {
+        console.warn("Could not log public scan:", logErr);
+      }
     }
     setIsLoading(false);
   };

@@ -108,12 +108,38 @@ export default function Settings() {
         .single();
 
       if (error) throw error;
+
+      // Fetch user's department from user_departments and departments
+      let departmentDisplayName = "";
+      try {
+        const { data: userDeptData } = await supabase
+          .from("user_departments")
+          .select("department_id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (userDeptData && userDeptData.length > 0) {
+          const deptId = userDeptData[0].department_id;
+          const { data: dept } = await supabase
+            .from("departments")
+            .select("name, code")
+            .eq("id", deptId)
+            .single();
+
+          if (dept) {
+            departmentDisplayName = dept.code ? `${dept.name} (${dept.code})` : dept.name;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch department in Settings:", err);
+      }
+
       if (data) {
         setProfile({
           full_name: data.full_name || "",
           email: user.email || "",
           phone: data.phone || "",
-          department: data.department_id || "",
+          department: departmentDisplayName,
         });
       }
     } catch (error: any) {
@@ -370,9 +396,16 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">
                       {profile.email}
                     </p>
-                    <Badge variant="outline" className="mt-1 capitalize">
-                      {userRole}
-                    </Badge>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge variant="outline" className="capitalize">
+                        {userRole}
+                      </Badge>
+                      {profile.department && (
+                        <Badge variant="secondary">
+                          {profile.department}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -403,17 +436,31 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={profile.email}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Email cannot be changed
-                  </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={profile.email}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Email cannot be changed
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      value={profile.department || "No department assigned"}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Department is managed by administrators
+                    </p>
+                  </div>
                 </div>
 
                 <Button onClick={handleSaveProfile} disabled={isSaving}>

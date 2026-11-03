@@ -2,12 +2,15 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 interface EmailRequest {
   type:
@@ -166,7 +169,7 @@ const getEmailTemplate = (
 </div></body></html>`,
       };
 
-    case "welcome_staff":
+    case "welcome_staff": {
       const roleDesc =
         data.role === "Staff"
           ? "<li>Manage inventory items</li><li>Approve borrow requests</li><li>Issue and receive items</li><li>Generate reports</li>"
@@ -195,6 +198,7 @@ const getEmailTemplate = (
   <div class="footer"><p>Questions? Contact your administrator</p><p>© 2025 LabLink</p></div>
 </div></body></html>`,
       };
+    }
 
     case "password_reset":
       return {
@@ -221,6 +225,7 @@ const getEmailTemplate = (
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   console.log("=== Send Email Function Called (Gmail SMTP) ===");
 
   if (req.method === "OPTIONS") {
@@ -228,8 +233,58 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // ── Security: Verify caller identity via JWT (handled by verify_jwt = true) ──
-    // The JWT is automatically verified by Supabase. If we reach here, the user is authenticated.
+    // ── Security: Enforce authentication and caller verification ──
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing Authorization header" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    const isServiceRole =
+      (Boolean(supabaseServiceKey) && token === supabaseServiceKey) ||
+      (Boolean(supabaseServiceKey) && authHeader === `Bearer ${supabaseServiceKey}`);
+
+    let isAnon = false;
+    let authUser = null;
+
+    if (!isServiceRole) {
+      if (
+        (Boolean(supabaseAnonKey) && token === supabaseAnonKey) ||
+        (Boolean(supabaseAnonKey) && authHeader === `Bearer ${supabaseAnonKey}`)
+      ) {
+        isAnon = true;
+      } else {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey || supabaseServiceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+          global: { headers: { Authorization: authHeader } },
+        });
+
+        const { data: userData, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !userData?.user) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Unauthorized: Invalid or expired token",
+            }),
+            {
+              status: 401,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
+        }
+        authUser = userData.user;
+      }
+    }
 
     // Get Gmail credentials from environment
     const GMAIL_USER = Deno.env.get("GMAIL_USER");
@@ -244,7 +299,7 @@ const handler = async (req: Request): Promise<Response> => {
             "Email service not configured. Admin needs to set GMAIL_USER and GMAIL_APP_PASSWORD in Supabase secrets.",
         }),
         {
-          status: 200,
+          status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         },
       );
@@ -274,12 +329,68 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // ── Security: Anonymous callers may ONLY request verification emails with an active OTP session ──
+    if (isAnon) {
+      if (emailData.type !== "verification") {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Forbidden: Unauthenticated callers may only request OTP verification emails",
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
+      if (!emailData.otp) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Missing OTP in request" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          },
+        );
+      }
+
+      // Verify against database that this OTP exists and is unexpired for this recipient
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+
+        const { data: otpRecord } = await supabaseAdmin
+          .from("otp_verifications")
+          .select("id, otp")
+          .eq("email", emailData.to)
+          .eq("verified", false)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!otpRecord || otpRecord.otp !== emailData.otp) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Forbidden: Invalid, unverified, or expired OTP session for recipient",
+            }),
+            {
+              status: 403,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
+        }
+      }
+    }
+
     // ── Security: Sanitize name to prevent injection ──
     emailData.name = (emailData.name || "User")
       .replace(/[<>"'&]/g, "")
       .slice(0, 100);
 
-    console.log(`Email type: ${emailData.type}, To: ${emailData.to}`);
+    console.log(`Email type: ${emailData.type}, To: ${emailData.to}, Auth: ${isServiceRole ? "service_role" : isAnon ? "anon" : authUser?.id}`);
 
     const { subject, html } = getEmailTemplate(emailData.type, emailData);
 
@@ -321,7 +432,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       {
-        status: 200,
+        status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       },
     );

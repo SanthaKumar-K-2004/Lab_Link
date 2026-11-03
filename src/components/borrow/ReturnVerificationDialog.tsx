@@ -131,6 +131,20 @@ export function ReturnVerificationDialog({
         console.error("Failed to update borrow request status:", borrowUpdateError);
       }
 
+      // Update issued_items to "returned" status so dashboard active borrows decrements correctly
+      const { error: issuedUpdateError } = await supabase
+        .from("issued_items")
+        .update({
+          status: "returned",
+          returned_date: new Date().toISOString(),
+        })
+        .eq("borrow_request_id", returnRequest.borrow_request_id)
+        .eq("status", "active");
+
+      if (issuedUpdateError) {
+        console.error("Failed to update issued_items status:", issuedUpdateError);
+      }
+
       toast({
         title: "Return Accepted",
         description: `${studentName}'s return of ${itemName} has been verified and accepted.`,

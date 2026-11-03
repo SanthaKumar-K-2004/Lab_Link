@@ -234,6 +234,18 @@ export default function Maintenance() {
       // If status is "completed" and actual_completion is not set, set it now
       if (formData.status === "completed") {
         recordData.actual_completion = new Date().toISOString();
+        // Synchronize item status back to available if it was under maintenance
+        await supabase
+          .from("items")
+          .update({ status: "available" })
+          .eq("id", formData.item_id)
+          .eq("status", "under_maintenance");
+      } else if (formData.status === "in_progress") {
+        // Mark item as under maintenance
+        await supabase
+          .from("items")
+          .update({ status: "under_maintenance" })
+          .eq("id", formData.item_id);
       }
 
       if (editingRecord) {

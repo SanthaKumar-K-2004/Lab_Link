@@ -94,8 +94,15 @@ export default function Auth() {
     const handleEmailConfirmation = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const confirmed = urlParams.get("confirmed");
+      const confirm = urlParams.get("confirm");
+      const isConfirmed = confirmed === "true" || confirm === "true";
+      const emailParam = urlParams.get("email");
 
-      if (confirmed === "true" && user) {
+      if (emailParam && !formData.email) {
+        setFormData((prev) => ({ ...prev, email: emailParam }));
+      }
+
+      if (isConfirmed && user) {
         // User just confirmed their email, activate their profile
         const { error } = await supabase
           .from("profiles")
@@ -231,52 +238,50 @@ export default function Auth() {
         { p_email: pendingEmail, p_otp: otp },
       );
 
-      if (verifyError || !(verifyResult as any)?.valid) {
+      const isOtpValid = typeof verifyResult === "boolean" ? verifyResult : (verifyResult as any)?.valid;
+
+      if (verifyError || !isOtpValid) {
         toast({
           variant: "destructive",
           title: "Invalid OTP",
           description:
             (verifyResult as any)?.error ||
+            verifyError?.message ||
             "The OTP is invalid or has expired. Please try again.",
         });
         setIsLoading(false);
         return;
       }
 
-      const redirectUrl = `${window.location.origin}/auth`;
-
-      const { data: signUpData, error: signUpError } =
-        await supabase.auth.signUp({
+      // User's OTP is verified! Activate the user profile
+      let authUser = (await supabase.auth.getUser()).data.user;
+      if (!authUser && formData.password) {
+        const { data: signInData } = await supabase.auth.signInWithPassword({
           email: pendingEmail,
           password: formData.password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: {
-              full_name: formData.fullName,
-              phone: formData.phone || null,
-              address: formData.address || null,
-              college_name: formData.collegeName,
-              department_id: formData.department,
-              register_number: formData.registerNumber,
-            },
-          },
         });
-
-      if (signUpError) {
-        throw signUpError;
+        authUser = signInData?.user || null;
       }
 
-      if (signUpData.user) {
+      if (authUser) {
         await supabase
           .from("profiles")
           .update({
-            register_number: formData.registerNumber,
-            college_name: formData.collegeName,
+            register_number: formData.registerNumber || undefined,
+            college_name: formData.collegeName || undefined,
             phone: formData.phone || null,
             is_verified: true,
             is_active: true,
           })
-          .eq("id", signUpData.user.id);
+          .eq("id", authUser.id);
+      } else {
+        await supabase
+          .from("profiles")
+          .update({
+            is_verified: true,
+            is_active: true,
+          })
+          .eq("email", pendingEmail);
       }
 
       try {
@@ -294,14 +299,14 @@ export default function Auth() {
       }
 
       toast({
-        title: "Registration Successful!",
+        title: "Registration & Verification Successful! 🎉",
         description:
-          "Your account has been created. Login credentials have been sent to your email. You can now log in.",
+          "Your account is verified and active. You can now log in.",
       });
 
       setMode("login");
       setFormData({
-        email: "",
+        email: pendingEmail,
         password: "",
         confirmPassword: "",
         fullName: "",
@@ -479,31 +484,25 @@ export default function Auth() {
             .eq("id", signUpData.user.id);
         }
 
-        if (signUpData.user && !signUpData.session) {
+        setPendingEmail(formData.email);
+        try {
+          await sendVerificationOTP(formData.email, formData.fullName);
           toast({
-            title: "Check Your Email! 📧",
+            title: "Verification Code Sent! 📧",
             description:
-              "We've sent a confirmation link to your email. Please click it to activate your account.",
+              "Please check your email and enter the 6-digit verification code to activate your account.",
           });
-        } else {
+        } catch (otpErr: any) {
+          console.error("Failed to send OTP email:", otpErr);
           toast({
-            title: "Registration Successful!",
-            description: "Your account has been created. You can now log in.",
+            title: "Account Created",
+            description:
+              otpErr.message ||
+              "Please enter the verification code sent to your email.",
           });
         }
 
-        setMode("login");
-        setFormData({
-          email: "",
-          password: "",
-          confirmPassword: "",
-          fullName: "",
-          registerNumber: "",
-          department: "",
-          phone: "",
-          collegeName: "",
-          address: "",
-        });
+        setMode("verify");
       }
     } catch (error: any) {
       toast({

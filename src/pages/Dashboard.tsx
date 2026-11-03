@@ -23,6 +23,7 @@ import {
   Activity,
   TrendingUp,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -30,15 +31,32 @@ import { useAuth } from "@/hooks/useAuth";
 import StudentDashboard from "@/pages/StudentDashboard";
 
 export default function Dashboard() {
-  const { userRole } = useUserRole();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const stats = useDashboardStats();
+  const { userRole, loading } = useUserRole();
 
-  // Route students to the dedicated student dashboard
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Route students to the dedicated student dashboard without firing heavy admin queries
   if (userRole === "student") {
     return <StudentDashboard />;
   }
+
+  return <AdminStaffDashboardView userRole={userRole} />;
+}
+
+function AdminStaffDashboardView({
+  userRole,
+}: {
+  userRole: "admin" | "staff" | "student" | "technician" | null;
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const stats = useDashboardStats();
 
   const userName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Admin";

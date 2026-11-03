@@ -103,7 +103,7 @@ export function ApprovalMessageDialog({
       // Get the borrow request details to find item and quantity
       const { data: requestData, error: fetchError } = await supabase
         .from("borrow_requests")
-        .select("item_id, quantity")
+        .select("item_id, quantity, requested_end_date, student_id")
         .eq("id", requestId)
         .single();
 
@@ -138,6 +138,28 @@ export function ApprovalMessageDialog({
           if (updateItemError) {
             console.error("Failed to update item quantity:", updateItemError);
           }
+        }
+
+        // Record the active checkout in issued_items so dashboard and active borrow tracking works
+        const targetStudentId = studentId || requestData.student_id;
+        const dueDate = requestData.requested_end_date ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error: issueError } = await supabase
+          .from("issued_items")
+          .insert({
+            borrow_request_id: requestId,
+            item_id: requestData.item_id,
+            issued_to: targetStudentId,
+            issued_by: user.id,
+            due_date: dueDate,
+            quantity_issued: requestData.quantity || 1,
+            status: "active",
+            condition_at_issue: conditions.trim() || "Good",
+          });
+
+        if (issueError) {
+          console.error("Failed to create issued_items record:", issueError);
         }
       }
 

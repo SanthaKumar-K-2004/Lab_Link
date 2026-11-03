@@ -52,8 +52,8 @@ export function BorrowRequestDialog({
   const [purpose, setPurpose] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /** Students can borrow at most half the current stock */
-  const maxBorrowable = Math.max(1, Math.floor(availableQuantity / 2));
+  /** Students can borrow at most half the current stock (0 if none available) */
+  const maxBorrowable = availableQuantity > 0 ? Math.max(1, Math.floor(availableQuantity / 2)) : 0;
 
   const handleQuantityChange = (value: string) => {
     const num = parseInt(value, 10);
@@ -65,6 +65,15 @@ export function BorrowRequestDialog({
   };
 
   const handleSubmit = async () => {
+    if (availableQuantity <= 0 || maxBorrowable <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Out of Stock",
+        description: "This item is currently out of stock and cannot be borrowed.",
+      });
+      return;
+    }
+
     if (!user || !startDate || !endDate) {
       toast({
         variant: "destructive",
@@ -253,7 +262,7 @@ export function BorrowRequestDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !startDate || !endDate || quantity < 1}
+            disabled={isSubmitting || !startDate || !endDate || quantity < 1 || maxBorrowable < 1}
             className="w-full sm:w-auto"
           >
             {isSubmitting ? (

@@ -105,13 +105,8 @@ export default function QRManagement() {
   };
 
   const generateQRCode = async (itemId: string, itemCode: string) => {
-    const qrData = JSON.stringify({
-      type: "lablink_item",
-      id: itemId,
-      code: itemCode,
-      ts: Date.now(),
-    });
-    return qrData;
+    // Generate web-compatible URL so both phone cameras and in-app scanners work seamlessly
+    return `${window.location.origin}/scan/${itemId}`;
   };
 
   const handleRegenerateQR = async (item: ItemWithQR) => {
