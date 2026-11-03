@@ -9,23 +9,25 @@ const GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
   "qwen/qwen3.8-27b",
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
-  "mixtral-8x7b-32768",
+  "allam-2-7b",
 ];
 
 export const GROQ_FALLBACK_MESSAGE =
   "The AI assistant is currently unavailable because the Groq API key is not configured. Please contact the lab administrator.";
 
 export function isGroqConfigured(): boolean {
-  return Boolean(
+  if (
     GROQ_API_KEY &&
     typeof GROQ_API_KEY === "string" &&
     GROQ_API_KEY.trim() !== "" &&
     !GROQ_API_KEY.includes("placeholder") &&
     GROQ_API_KEY !== "undefined" &&
     GROQ_API_KEY !== "null"
-  );
+  ) {
+    return true;
+  }
+  // Server-side Groq via Supabase Edge Functions is available
+  return Boolean(import.meta.env.VITE_SUPABASE_URL);
 }
 
 export interface ChatMessage {
@@ -234,8 +236,8 @@ export async function sendChatMessage(
     // Edge function not reachable or not configured in local environment; proceed to fallback
   }
 
-  if (!isGroqConfigured()) {
-    console.warn("Groq API Key is missing or unconfigured");
+  if (!GROQ_API_KEY || GROQ_API_KEY.trim() === "" || GROQ_API_KEY.includes("placeholder")) {
+    console.warn("Groq API Key is missing and Edge Function was unreachable");
     return GROQ_FALLBACK_MESSAGE;
   }
 
@@ -300,8 +302,36 @@ export async function streamChatMessage(
     })),
   ];
 
-  if (!isGroqConfigured()) {
-    console.warn("Groq API Key is missing or unconfigured");
+  // 1. Try secure backend Edge Function first (keeps GROQ_API_KEY off the client)
+  try {
+    const { data: edgeData, error: edgeError } = await supabase.functions.invoke("chat", {
+      body: { messages: apiMessages },
+    });
+    if (!edgeError && edgeData?.content && typeof edgeData.content === "string") {
+      const fullText = edgeData.content;
+      // Progressive streaming effect for a smooth natural chat experience
+      const words = fullText.split(" ");
+      let current = "";
+      for (let i = 0; i < words.length; i++) {
+        current += (i === 0 ? "" : " ") + words[i];
+        onChunk(current);
+        if (i % 3 === 0) {
+          await new Promise((r) => setTimeout(r, 12));
+        }
+      }
+      onChunk(fullText);
+      return;
+    }
+    if (edgeError) {
+      console.warn("Edge function chat returned error, attempting direct client fallback:", edgeError);
+    }
+  } catch (edgeErr) {
+    console.warn("Failed to invoke chat edge function:", edgeErr);
+  }
+
+  // 2. Direct client fallback (only if VITE_GROQ_API_KEY is present in dev environment)
+  if (!GROQ_API_KEY || GROQ_API_KEY.trim() === "" || GROQ_API_KEY.includes("placeholder")) {
+    console.warn("Groq API Key is missing and Edge Function was unreachable");
     onChunk(GROQ_FALLBACK_MESSAGE);
     return;
   }
