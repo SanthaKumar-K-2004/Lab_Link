@@ -11,17 +11,17 @@ export interface ScientificAnimatedBackgroundProps extends Partial<LineWavesProp
 export const ScientificAnimatedBackground: React.FC<ScientificAnimatedBackgroundProps> = ({
   color1 = "#0284c7",
   color2 = "#38bdf8",
-  color3 = "#2563eb",
-  speed = 0.25,
-  lineCount = 56,
-  lineWidth = 1.3,
-  glow = 0.5,
-  brightness = 1.0,
-  highlight = 0.85,
-  highlightWidth = 1.2,
-  warpIntensity = 0.9,
-  warpScale = 1.35,
-  rotation = -26,
+  color3 = "#0ea5e9",
+  speed = 0.22,
+  lineCount = 64,
+  lineWidth = 1.5,
+  glow = 0.65,
+  brightness = 1.35,
+  highlight = 0.45,
+  highlightWidth = 1.4,
+  warpIntensity = 0.85,
+  warpScale = 1.3,
+  rotation = -22,
   enableMouseInteraction = true,
   clickRipple = true,
   showIcons = true,
@@ -31,19 +31,17 @@ export const ScientificAnimatedBackground: React.FC<ScientificAnimatedBackground
 }) => {
   return (
     <div
-      className={`relative w-full h-full overflow-hidden bg-gradient-to-b from-[#f9fbfe] via-[#f0f6fe] to-[#e1effc] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 ${className}`}
+      className={`relative w-full h-full overflow-hidden bg-gradient-to-b from-[#f8fbff] via-[#edf5fe] to-[#dbeefd] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 ${className}`}
     >
-      {/* 1. Clean, Soft Radiant Lighting */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Soft center-top pure radiance */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[550px] bg-[radial-gradient(ellipse_70%_55%_at_50%_15%,rgba(255,255,255,0.95),rgba(240,248,255,0.3),transparent_75%)]" />
-        {/* Delicate sky-blue atmospheric luminescence */}
-        <div className="absolute top-[10%] -left-[5%] w-[600px] h-[600px] rounded-full bg-sky-200/25 blur-[130px]" />
-        <div className="absolute top-[15%] -right-[5%] w-[650px] h-[650px] rounded-full bg-blue-300/20 blur-[140px]" />
+      {/* 1. Soft Ambient Illumination Bloom behind Content */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[550px] bg-[radial-gradient(ellipse_75%_50%_at_50%_40%,rgba(255,255,255,0.98),rgba(235,245,255,0.4)_60%,transparent_85%)]" />
+        <div className="absolute top-[8%] -left-[6%] w-[550px] h-[550px] rounded-full bg-sky-200/35 blur-[120px]" />
+        <div className="absolute top-[12%] -right-[6%] w-[600px] h-[600px] rounded-full bg-blue-200/30 blur-[130px]" />
       </div>
 
-      {/* 2. Interactive Animated LineWaves Canvas (Fully visible & interactive) */}
-      <div className="absolute inset-0 z-0 opacity-80 pointer-events-auto">
+      {/* 2. Interactive Animated LineWaves Canvas (Crisp, High Contrast, Interactive) */}
+      <div className="absolute inset-0 z-0 pointer-events-auto">
         <LineWaves
           color1={color1}
           color2={color2}
@@ -60,104 +58,149 @@ export const ScientificAnimatedBackground: React.FC<ScientificAnimatedBackground
           rotation={rotation}
           enableMouseInteraction={enableMouseInteraction}
           clickRipple={clickRipple}
+          opacity={0.88}
           className="w-full h-full"
           {...lineWaveProps}
         />
       </div>
 
-      {/* 3. Sweeping Smooth Wave Ribbon - Smoothly Undulating */}
-      <motion.div
-        animate={{
-          y: [0, -8, 0],
-          scaleY: [1, 1.03, 1],
-        }}
-        transition={{
-          duration: 9,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute inset-x-0 bottom-0 h-[380px] pointer-events-none z-0 overflow-hidden"
-      >
-        <svg
-          viewBox="0 0 1440 380"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full"
-          preserveAspectRatio="none"
+      {/* 3. Silky Sweeping Wave Ribbons matching Reference Image */}
+      <div className="absolute inset-x-0 bottom-0 h-[360px] md:h-[420px] pointer-events-none z-0 overflow-hidden">
+        {/* Layer 1: Undulating Background Wave & Stipple Field */}
+        <motion.div
+          animate={{
+            y: [0, -6, 0],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute inset-0"
         >
-          <defs>
-            {/* Primary soft glass wave gradient */}
-            <linearGradient id="waveGlassGrad" x1="720" y1="60" x2="720" y2="380" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.82" />
-              <stop offset="40%" stopColor="#f0f7fe" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#dceefe" stopOpacity="0.5" />
-            </linearGradient>
+          <svg
+            viewBox="0 0 1440 420"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-full h-full"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              {/* Halftone / Stipple Matrix Pattern */}
+              <pattern id="stippleDots" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+                <circle cx="6" cy="6" r="1.1" fill="#38bdf8" fillOpacity="0.4" />
+              </pattern>
 
-            {/* Specular edge glow line */}
-            <linearGradient id="crestGlow" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.3" />
-              <stop offset="35%" stopColor="#bae6fd" stopOpacity="0.75" />
-              <stop offset="60%" stopColor="#ffffff" stopOpacity="0.98" />
-              <stop offset="85%" stopColor="#7dd3fc" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.3" />
-            </linearGradient>
+              {/* Secondary wave fill */}
+              <linearGradient id="backWaveGrad" x1="720" y1="120" x2="720" y2="420" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+                <stop offset="60%" stopColor="#e0f2fe" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#bae6fd" stopOpacity="0.15" />
+              </linearGradient>
+            </defs>
 
-            {/* Dotted stipple matrix pattern matching reference */}
-            <pattern id="stipplePattern" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
-              <circle cx="7" cy="7" r="1.1" fill="#38bdf8" fillOpacity="0.32" />
-            </pattern>
-          </defs>
+            {/* Stippled micro-dot particle band flowing along right curve */}
+            <path
+              d="M 680,270 C 920,290 1180,240 1440,270 L 1440,420 L 680,420 Z"
+              fill="url(#stippleDots)"
+            />
 
-          {/* Background curved dot-matrix stipple field in bottom-right */}
-          <path
-            d="M 640,280 C 880,310 1150,250 1440,290 L 1440,380 L 640,380 Z"
-            fill="url(#stipplePattern)"
-            className="opacity-75"
-          />
+            {/* Stippled micro-dot band on left */}
+            <path
+              d="M 0,310 C 220,330 460,300 680,320 L 680,420 L 0,420 Z"
+              fill="url(#stippleDots)"
+              fillOpacity="0.5"
+            />
 
-          {/* Secondary subtle wave curve behind */}
-          <path
-            d="M 0,290 C 340,240 680,330 1080,270 C 1260,250 1380,280 1440,295"
-            stroke="#93c5fd"
-            strokeWidth="1.2"
-            strokeOpacity="0.4"
-            strokeDasharray="4 6"
-          />
+            {/* Secondary sweeping wave path */}
+            <path
+              d="M 0,260 C 380,180 720,340 1120,270 C 1280,240 1380,270 1440,285 L 1440,420 L 0,420 Z"
+              fill="url(#backWaveGrad)"
+            />
+            <path
+              d="M 0,260 C 380,180 720,340 1120,270 C 1280,240 1380,270 1440,285"
+              stroke="#93c5fd"
+              strokeWidth="1.2"
+              strokeOpacity="0.45"
+              strokeDasharray="4 6"
+            />
+          </svg>
+        </motion.div>
 
-          {/* Gracefully sweeping main wave body */}
-          <path
-            d="M 0,230 C 280,150 560,300 900,240 C 1120,200 1320,120 1440,150 L 1440,380 L 0,380 Z"
-            fill="url(#waveGlassGrad)"
-          />
+        {/* Layer 2: Main Silk Wave Ribbon with Luminous Glowing Crest Edge */}
+        <motion.div
+          animate={{
+            y: [0, -10, 0],
+            scaleY: [1, 1.025, 1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="absolute inset-0"
+        >
+          <svg
+            viewBox="0 0 1440 420"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-full h-full"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              {/* Translucent silk wave fill */}
+              <linearGradient id="silkWaveGrad" x1="720" y1="160" x2="720" y2="420" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.75" />
+                <stop offset="45%" stopColor="#e0f2fe" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#bae6fd" stopOpacity="0.25" />
+              </linearGradient>
 
-          {/* Luminous Specular Wave Crest Edge */}
-          <path
-            d="M 0,230 C 280,150 560,300 900,240 C 1120,200 1320,120 1440,150"
-            stroke="url(#crestGlow)"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            style={{
-              filter: "drop-shadow(0px -1px 4px rgba(255,255,255,0.95)) drop-shadow(0px 2px 10px rgba(56,189,248,0.45))",
-            }}
-          />
-        </svg>
-      </motion.div>
+              {/* Specular glowing crest edge */}
+              <linearGradient id="crestNeonGlow" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.4" />
+                <stop offset="25%" stopColor="#bae6fd" stopOpacity="0.8" />
+                <stop offset="48%" stopColor="#ffffff" stopOpacity="1" />
+                <stop offset="65%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="88%" stopColor="#7dd3fc" stopOpacity="0.7" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
 
-      {/* 4. Watermark Laboratory Icons (Top-Right, Bottom-Left, Bottom-Right) */}
+            {/* Wave body with translucent glassmorphic gradient */}
+            <path
+              d="M 0,220 C 260,140 540,310 880,240 C 1120,195 1310,130 1440,160 L 1440,420 L 0,420 Z"
+              fill="url(#silkWaveGrad)"
+            />
+
+            {/* Specular Glowing Rim Light Line along Crest */}
+            <path
+              d="M 0,220 C 260,140 540,310 880,240 C 1120,195 1310,130 1440,160"
+              stroke="url(#crestNeonGlow)"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              style={{
+                filter: "drop-shadow(0px -1px 5px rgba(255,255,255,0.95)) drop-shadow(0px 2px 12px rgba(56,189,248,0.55))",
+              }}
+            />
+          </svg>
+        </motion.div>
+      </div>
+
+      {/* 4. Minimalist Watermark Laboratory Icons (Top-Right, Left, Right) */}
       {showIcons && (
         <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
-          {/* Top-Right: Hexagon lattice */}
-          <div className="absolute right-8 top-16 md:right-28 md:top-24 w-28 md:w-36">
+          {/* Top-Right: Hexagon lattice molecular structure */}
+          <div className="absolute right-6 top-16 md:right-24 md:top-24 w-24 md:w-32">
             <HexagonLattice />
           </div>
 
-          {/* Bottom-Left: Erlenmeyer Flask */}
-          <div className="absolute left-8 bottom-12 md:left-20 md:bottom-24 w-16 md:w-24">
+          {/* Left: Erlenmeyer Flask */}
+          <div className="absolute left-6 md:left-20 top-[48%] -translate-y-1/2 w-14 md:w-20">
             <FlaskWatermark />
           </div>
 
-          {/* Bottom-Right: Precision Microscope */}
-          <div className="absolute right-8 bottom-12 md:right-24 md:bottom-24 w-20 md:w-28">
+          {/* Right: Precision Microscope */}
+          <div className="absolute right-6 md:right-20 top-[60%] -translate-y-1/2 w-18 md:w-24">
             <MicroscopeWatermark />
           </div>
         </div>

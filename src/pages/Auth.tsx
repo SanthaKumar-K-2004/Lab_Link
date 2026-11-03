@@ -89,45 +89,101 @@ export default function Auth() {
     fetchDepartments();
   }, []);
 
-  // Handle email confirmation callback
+  // Handle email confirmation callback and URL auth parameters
   useEffect(() => {
     const handleEmailConfirmation = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const confirmed = urlParams.get("confirmed");
-      const confirm = urlParams.get("confirm");
-      const isConfirmed = confirmed === "true" || confirm === "true";
-      const emailParam = urlParams.get("email");
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const confirmed = urlParams.get("confirmed") || hashParams.get("confirmed");
+      const confirm = urlParams.get("confirm") || hashParams.get("confirm");
+      const hasAccessToken = window.location.hash.includes("access_token");
+      const isConfirmed = confirmed === "true" || confirm === "true" || hasAccessToken;
+      const emailParam = urlParams.get("email") || hashParams.get("email");
 
       if (emailParam && !formData.email) {
         setFormData((prev) => ({ ...prev, email: emailParam }));
       }
 
-      if (isConfirmed && user) {
-        // User just confirmed their email, activate their profile
+      // Check for Supabase PKCE or token verification query params
+      const tokenHash = urlParams.get("token_hash");
+      const code = urlParams.get("code");
+      const type = (urlParams.get("type") as any) || "signup";
+
+      if (tokenHash) {
+        try {
+          await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+        } catch (e) {
+          console.warn("Token hash verification error:", e);
+        }
+      } else if (code) {
+        try {
+          await supabase.auth.exchangeCodeForSession(code);
+        } catch (e) {
+          console.warn("Exchange code for session error:", e);
+        }
+      }
+
+      // Fetch active session or user
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const activeUser = session?.user || user;
+
+      if (isConfirmed && activeUser) {
+        // Activate the user's profile
         const { error } = await supabase
           .from("profiles")
           .update({
             is_verified: true,
             is_active: true,
           })
-          .eq("id", user.id);
+          .eq("id", activeUser.id);
 
         if (!error) {
           toast({
             title: "Email Verified! ✅",
-            description: "Your account is now active. Welcome to LabLink!",
+            description: "Your account is now verified and active. Welcome to LabLink!",
           });
           window.history.replaceState(
             {},
             document.title,
             window.location.pathname,
           );
+          navigate("/dashboard");
         }
       }
     };
 
     handleEmailConfirmation();
-  }, [user, toast]);
+
+    // Listen to auth state transitions
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isConfirmed =
+          urlParams.get("confirmed") === "true" ||
+          window.location.hash.includes("access_token");
+
+        if (isConfirmed) {
+          await supabase
+            .from("profiles")
+            .update({
+              is_verified: true,
+              is_active: true,
+            })
+            .eq("id", session.user.id);
+
+          navigate("/dashboard");
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user, toast, navigate]);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -233,21 +289,67 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const { data: verifyResult, error: verifyError } = await supabase.rpc(
-        "verify_otp",
-        { p_email: pendingEmail, p_otp: otp },
-      );
+      let isVerified = false;
 
-      const isOtpValid = typeof verifyResult === "boolean" ? verifyResult : (verifyResult as any)?.valid;
+      // 1. Attempt Supabase native OTP verification (verifies the 6-digit token sent via Supabase email)
+      try {
+        const { data: supaVerify, error: supaErr } =
+          await supabase.auth.verifyOtp({
+            email: pendingEmail,
+            token: otp,
+            type: "signup",
+          });
 
-      if (verifyError || !isOtpValid) {
+        if (!supaErr && supaVerify?.user) {
+          isVerified = true;
+        }
+      } catch (e) {
+        console.warn("Supabase signup OTP attempt error:", e);
+      }
+
+      // Also try type: "email" if signup wasn't matched
+      if (!isVerified) {
+        try {
+          const { data: supaVerify, error: supaErr } =
+            await supabase.auth.verifyOtp({
+              email: pendingEmail,
+              token: otp,
+              type: "email",
+            });
+
+          if (!supaErr && supaVerify?.user) {
+            isVerified = true;
+          }
+        } catch (e) {
+          // continue to RPC check
+        }
+      }
+
+      // 2. Attempt custom database RPC verify_otp as fallback
+      if (!isVerified) {
+        const { data: verifyResult, error: verifyError } = await supabase.rpc(
+          "verify_otp",
+          { p_email: pendingEmail, p_otp: otp },
+        );
+
+        const isOtpValid =
+          typeof verifyResult === "boolean"
+            ? verifyResult
+            : (verifyResult as any)?.valid;
+
+        if (isOtpValid) {
+          isVerified = true;
+        } else if (verifyError) {
+          console.warn("RPC verify_otp error:", verifyError);
+        }
+      }
+
+      if (!isVerified) {
         toast({
           variant: "destructive",
-          title: "Invalid OTP",
+          title: "Invalid Verification Code",
           description:
-            (verifyResult as any)?.error ||
-            verifyError?.message ||
-            "The OTP is invalid or has expired. Please try again.",
+            "The code is invalid or has expired. Please check your email or click Resend.",
         });
         setIsLoading(false);
         return;
@@ -301,7 +403,7 @@ export default function Auth() {
       toast({
         title: "Registration & Verification Successful! 🎉",
         description:
-          "Your account is verified and active. You can now log in.",
+          "Your account is verified and active. You are now logged in.",
       });
 
       setMode("login");
@@ -318,6 +420,7 @@ export default function Auth() {
       });
       setOtp("");
       setPendingEmail("");
+      navigate("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -488,17 +591,16 @@ export default function Auth() {
         try {
           await sendVerificationOTP(formData.email, formData.fullName);
           toast({
-            title: "Verification Code Sent! 📧",
+            title: "Verification Email Sent! 📧",
             description:
-              "Please check your email and enter the 6-digit verification code to activate your account.",
+              "Check your email and click the confirmation link or enter the 6-digit code.",
           });
         } catch (otpErr: any) {
-          console.error("Failed to send OTP email:", otpErr);
+          console.warn("Custom OTP send note:", otpErr);
           toast({
-            title: "Account Created",
+            title: "Account Created! 📧",
             description:
-              otpErr.message ||
-              "Please enter the verification code sent to your email.",
+              "We sent an activation link to your email. Click the link in your email or enter your 6-digit code.",
           });
         }
 
@@ -769,13 +871,32 @@ export default function Auth() {
                             {isLoading ? "Verifying..." : "Verify & Create Account"}
                           </Button>
                           <p className="text-center text-sm font-medium text-muted-foreground mt-4">
-                            Didn't receive the code?{" "}
+                            Didn't receive the email?{" "}
                             <button
                               type="button"
-                              onClick={() =>
-                                sendVerificationOTP(pendingEmail, formData.fullName)
-                              }
-                              className="text-primary hover:text-primary/80 hover:underline transition-colors"
+                              onClick={async () => {
+                                try {
+                                  await supabase.auth.resend({
+                                    type: "signup",
+                                    email: pendingEmail,
+                                    options: {
+                                      emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
+                                    },
+                                  });
+                                  await sendVerificationOTP(
+                                    pendingEmail,
+                                    formData.fullName,
+                                  );
+                                } catch (e) {
+                                  // ignore
+                                }
+                                toast({
+                                  title: "Verification Resent 📧",
+                                  description:
+                                    "Check your inbox for a fresh activation link or code.",
+                                });
+                              }}
+                              className="text-primary hover:text-primary/80 hover:underline transition-colors font-semibold"
                             >
                               Resend
                             </button>

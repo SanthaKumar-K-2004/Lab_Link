@@ -177,17 +177,17 @@ export default function Index() {
         <ScientificAnimatedBackground
           color1="#0284c7"
           color2="#38bdf8"
-          color3="#2563eb"
+          color3="#0ea5e9"
           speed={0.25}
-          lineCount={56}
-          lineWidth={1.4}
-          glow={0.5}
-          brightness={1.0}
-          highlight={0.85}
-          highlightWidth={1.2}
-          warpIntensity={0.9}
-          warpScale={1.35}
-          rotation={-26}
+          lineCount={64}
+          lineWidth={1.6}
+          glow={0.7}
+          brightness={1.35}
+          highlight={0.45}
+          highlightWidth={1.5}
+          warpIntensity={0.85}
+          warpScale={1.3}
+          rotation={-22}
           enableMouseInteraction={true}
           clickRipple={true}
           className="absolute inset-0 z-0"

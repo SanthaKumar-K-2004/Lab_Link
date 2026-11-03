@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 
 /**
- * Clean line-art Honeycomb Hexagons matching top-right watermark in reference image
+ * Clean line-art Honeycomb Hexagons matching top-right watermark in reference image (3 connected rings)
  */
 export const HexagonLattice: React.FC<{ className?: string }> = ({ className = "" }) => {
   return (
@@ -10,9 +10,10 @@ export const HexagonLattice: React.FC<{ className?: string }> = ({ className = "
       viewBox="0 0 160 140"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`text-sky-400/50 dark:text-sky-400/30 ${className}`}
+      className={`text-sky-400/60 dark:text-sky-400/30 ${className}`}
       animate={{
         y: [0, -6, 0],
+        rotate: [0, 1.5, 0],
       }}
       transition={{
         duration: 9,
@@ -20,19 +21,27 @@ export const HexagonLattice: React.FC<{ className?: string }> = ({ className = "
         ease: "easeInOut",
       }}
     >
-      {/* Top-left hexagon */}
+      {/* Top-right hexagon */}
       <polygon
-        points="60,16 88,32 88,64 60,80 32,64 32,32"
+        points="100,16 128,32 128,64 100,80 72,64 72,32"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Connected bottom-right hexagon sharing top-left segment (88,32)-(88,64) */}
+      {/* Top-left hexagon sharing edge */}
       <polygon
-        points="88,64 116,80 116,112 88,128 60,112 60,80"
+        points="72,32 72,64 44,80 16,64 16,32 44,16"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Bottom-center hexagon */}
+      <polygon
+        points="72,64 100,80 100,112 72,128 44,112 44,80"
+        stroke="currentColor"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
