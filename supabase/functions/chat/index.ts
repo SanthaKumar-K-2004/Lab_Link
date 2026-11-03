@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "*";
@@ -13,6 +12,9 @@ function getCorsHeaders(req: Request) {
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.8-27b",
   "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant",
   "mixtral-8x7b-32768",
@@ -50,48 +52,61 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const model = GROQ_MODELS[0];
-    const groqResponse = await fetch(GROQ_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: 1200,
-        temperature: 0.4,
-        top_p: 0.9,
-        stream,
-      }),
-    });
+    let lastError = "";
+    let lastStatus = 500;
 
-    if (!groqResponse.ok) {
-      const errText = await groqResponse.text();
-      return new Response(
-        JSON.stringify({ error: `Groq error: ${errText}` }),
-        { status: groqResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+    for (const model of GROQ_MODELS) {
+      try {
+        const groqResponse = await fetch(GROQ_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            max_tokens: 1200,
+            temperature: 0.4,
+            top_p: 0.9,
+            stream,
+          }),
+        });
+
+        if (!groqResponse.ok) {
+          lastStatus = groqResponse.status;
+          lastError = await groqResponse.text();
+          console.warn(`Groq model ${model} failed (${lastStatus}): ${lastError}`);
+          continue; // Try next fallback model
+        }
+
+        if (stream) {
+          return new Response(groqResponse.body, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              ...corsHeaders,
+            },
+          });
+        }
+
+        const data = await groqResponse.json();
+        const content = data.choices?.[0]?.message?.content || "";
+
+        return new Response(JSON.stringify({ content }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      } catch (fetchErr: any) {
+        lastError = fetchErr.message;
+        console.warn(`Fetch error on model ${model}:`, fetchErr);
+      }
     }
 
-    if (stream) {
-      return new Response(groqResponse.body, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          ...corsHeaders,
-        },
-      });
-    }
-
-    const data = await groqResponse.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    return new Response(JSON.stringify({ content }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ error: `Groq error across models: ${lastError}` }),
+      { status: lastStatus, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
   } catch (err: any) {
     return new Response(
       JSON.stringify({ error: err.message || "Internal server error" }),
@@ -101,4 +116,3 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 serve(handler);
-
