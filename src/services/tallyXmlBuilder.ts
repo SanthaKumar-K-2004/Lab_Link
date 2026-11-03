@@ -703,63 +703,6 @@ export function parseLedgerBalanceResponse(
   }
 }
 
-// ==========================================
-// Batch-wise Stock Report Query XML
-// ==========================================
-export function buildBatchStockReportXml(stockItemName?: string): string {
-  return `<ENVELOPE>
-  <HEADER>
-    <VERSION>1</VERSION>
-    <TALLYREQUEST>Export</TALLYREQUEST>
-    <TYPE>Data</TYPE>
-    <ID>Stock Summary</ID>
-  </HEADER>
-  <BODY>
-    <DESC>
-      <STATICVARIABLES>
-        <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-        ${stockItemName ? `<STOCKITEMNAME>${escapeXml(stockItemName)}</STOCKITEMNAME>` : ""}
-      </STATICVARIABLES>
-      <TDL>
-        <TDLMESSAGE>
-          <REPORT NAME="Batch Stock Report">
-            <FORMS>Batch Stock Form</FORMS>
-          </REPORT>
-          <FORM NAME="Batch Stock Form">
-            <PARTS>Batch Stock Part</PARTS>
-          </FORM>
-          <PART NAME="Batch Stock Part">
-            <LINES>Batch Stock Line</LINES>
-            <REPEAT>Batch Stock Line : Batch Allocations</REPEAT>
-            <SCROLLED>Vertical</SCROLLED>
-          </PART>
-          <LINE NAME="Batch Stock Line">
-            <FIELDS>ItemName, BatchName, BatchQty, MfgDate, ExpiryDate, GodownName</FIELDS>
-          </LINE>
-          <FIELD NAME="ItemName">
-            <SET>$StockItemName</SET>
-          </FIELD>
-          <FIELD NAME="BatchName">
-            <SET>$BatchName</SET>
-          </FIELD>
-          <FIELD NAME="BatchQty">
-            <SET>$ClosingBalance</SET>
-          </FIELD>
-          <FIELD NAME="MfgDate">
-            <SET>$MfgDate</SET>
-          </FIELD>
-          <FIELD NAME="ExpiryDate">
-            <SET>$ExpiryDate</SET>
-          </FIELD>
-          <FIELD NAME="GodownName">
-            <SET>$GodownName</SET>
-          </FIELD>
-        </TDLMESSAGE>
-      </TDL>
-    </DESC>
-  </BODY>
-</ENVELOPE>`;
-}
 
 // ==========================================
 // Depreciation Journal Voucher XML
@@ -926,44 +869,4 @@ export function buildEInvoiceJson(data: EInvoiceData): string {
   return JSON.stringify(payload, null, 2);
 }
 
-// ==========================================
-// Tally E-Invoice IRN Update XML
-// Updates a voucher with IRN details after e-invoice generation
-// ==========================================
-export function buildEInvoiceVoucherXml(
-  voucherNumber: string,
-  irn: string,
-  ackNo: string,
-  ackDate: string,
-  signedQrCode: string,
-): string {
-  return `<ENVELOPE>
-  <HEADER>
-    <VERSION>1</VERSION>
-    <TALLYREQUEST>Import</TALLYREQUEST>
-    <TYPE>Data</TYPE>
-    <ID>All Masters</ID>
-  </HEADER>
-  <BODY>
-    <IMPORTDATA>
-      <REQUESTDESC>
-        <REPORTNAME>Vouchers</REPORTNAME>
-        <STATICVARIABLES>
-          <SVCURRENTCOMPANY/>
-        </STATICVARIABLES>
-      </REQUESTDESC>
-      <REQUESTDATA>
-        <TALLYMESSAGE>
-          <VOUCHER VCHTYPE="Purchase" ACTION="Alter" REMOTEID="${escapeXml(voucherNumber)}">
-            <VOUCHERNUMBER>${escapeXml(voucherNumber)}</VOUCHERNUMBER>
-            <IRNNUMBER>${escapeXml(irn)}</IRNNUMBER>
-            <IRNACKNO>${escapeXml(ackNo)}</IRNACKNO>
-            <IRNACKDATE>${escapeXml(ackDate)}</IRNACKDATE>
-            <IRNSIGNEDQRCODE>${escapeXml(signedQrCode)}</IRNSIGNEDQRCODE>
-          </VOUCHER>
-        </TALLYMESSAGE>
-      </REQUESTDATA>
-    </IMPORTDATA>
-  </BODY>
-</ENVELOPE>`;
-}
+

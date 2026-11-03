@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { enqueueOperation } from "@/lib/offlineQueue";
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,10 @@ export function BorrowRequestDialog({
     setIsSubmitting(true);
 
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        throw new Error("Failed to fetch - Network unavailable");
+      }
+
       const { error } = await supabase.from("borrow_requests").insert({
         item_id: itemId,
         student_id: user.id,
@@ -130,6 +135,32 @@ export function BorrowRequestDialog({
       onSuccess?.();
       onClose();
     } catch (error: any) {
+      if (
+        (typeof navigator !== "undefined" && !navigator.onLine) ||
+        error.message?.includes("fetch") ||
+        error.message?.includes("Network")
+      ) {
+        await enqueueOperation("borrow", {
+          item_id: itemId,
+          student_id: user.id,
+          requested_start_date: format(startDate, "yyyy-MM-dd"),
+          requested_end_date: format(endDate, "yyyy-MM-dd"),
+          quantity: quantity,
+          purpose: purpose.trim() || null,
+        });
+
+        toast({
+          title: "Saved Offline 📶",
+          description: `You are currently offline. Your borrow request for ${quantity}x ${itemName} has been saved locally and will automatically submit when connectivity is restored.`,
+        });
+
+        setPurpose("");
+        setQuantity(1);
+        onSuccess?.();
+        onClose();
+        return;
+      }
+
       console.error("Error submitting borrow request:", error);
       toast({
         variant: "destructive",

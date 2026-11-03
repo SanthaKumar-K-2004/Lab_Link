@@ -24,7 +24,9 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import QRCodeLib from "qrcode";
-import { QRPreviewModal, BulkQRPrint, QRScanner } from "@/components/qr";
+import { QRPreviewModal } from "@/components/qr/QRPreviewModal";
+import { BulkQRPrint } from "@/components/qr/BulkQRPrint";
+import { QRScanner } from "@/components/qr/QRScanner";
 import {
   DropdownMenu,
   DropdownMenuContent,

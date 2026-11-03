@@ -37,15 +37,29 @@ export function useOfflineSync() {
     try {
       switch (op.type) {
         case "borrow": {
-          const { error } = await supabase.from("issued_items").insert({
-            item_id: op.payload.item_id,
-            issued_to: op.payload.issued_to,
-            issued_by: op.payload.issued_by,
-            due_date: op.payload.due_date,
-            status: "active",
-          } as any);
-          if (error) throw error;
-          return true;
+          if (op.payload.student_id) {
+            const { error } = await supabase.from("borrow_requests").insert({
+              item_id: op.payload.item_id,
+              student_id: op.payload.student_id,
+              requested_start_date: op.payload.requested_start_date,
+              requested_end_date: op.payload.requested_end_date,
+              quantity: op.payload.quantity || 1,
+              purpose: op.payload.purpose || null,
+              status: "pending",
+            } as any);
+            if (error) throw error;
+            return true;
+          } else {
+            const { error } = await supabase.from("issued_items").insert({
+              item_id: op.payload.item_id,
+              issued_to: op.payload.issued_to,
+              issued_by: op.payload.issued_by,
+              due_date: op.payload.due_date,
+              status: "active",
+            } as any);
+            if (error) throw error;
+            return true;
+          }
         }
         case "return": {
           const { error } = await supabase

@@ -376,6 +376,22 @@ export default function Auth() {
             is_active: true,
           })
           .eq("id", authUser.id);
+
+        // Auto-assign trusted domain role if configured
+        const emailDomain = pendingEmail.split("@")[1]?.toLowerCase();
+        if (emailDomain) {
+          const { data: trusted } = await supabase
+            .from("sso_trusted_domains")
+            .select("auto_role")
+            .eq("domain", emailDomain)
+            .eq("is_active", true)
+            .maybeSingle();
+          if (trusted?.auto_role) {
+            await supabase
+              .from("user_roles")
+              .upsert({ user_id: authUser.id, role: trusted.auto_role as any }, { onConflict: "user_id" });
+          }
+        }
       } else {
         await supabase
           .from("profiles")
@@ -551,6 +567,24 @@ export default function Auth() {
           return;
         }
 
+        const emailDomain = formData.email.split("@")[1]?.toLowerCase();
+        let isAutoApproved = false;
+        let matchedRole: string | null = null;
+
+        if (emailDomain) {
+          const { data: trustedDomain } = await supabase
+            .from("sso_trusted_domains")
+            .select("auto_role, auto_approve")
+            .eq("domain", emailDomain)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (trustedDomain) {
+            isAutoApproved = Boolean(trustedDomain.auto_approve);
+            matchedRole = trustedDomain.auto_role || null;
+          }
+        }
+
         const redirectUrl = `${window.location.origin}/auth?confirmed=true`;
 
         const { data: signUpData, error: signUpError } =
@@ -581,10 +615,26 @@ export default function Auth() {
               register_number: formData.registerNumber,
               college_name: formData.collegeName,
               phone: formData.phone || null,
-              is_verified: false,
-              is_active: false,
+              is_verified: isAutoApproved,
+              is_active: isAutoApproved,
             })
             .eq("id", signUpData.user.id);
+
+          if (matchedRole) {
+            await supabase
+              .from("user_roles")
+              .upsert({ user_id: signUpData.user.id, role: matchedRole as any }, { onConflict: "user_id" });
+          }
+        }
+
+        if (isAutoApproved) {
+          toast({
+            title: `Domain @${emailDomain} Verified! 🎉`,
+            description: `Your institutional email domain was auto-recognized. Your account is approved as ${matchedRole || "member"}.`,
+          });
+          setMode("login");
+          setIsLoading(false);
+          return;
         }
 
         setPendingEmail(formData.email);

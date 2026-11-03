@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -235,6 +236,17 @@ export function Header({
 
         {/* Offline Status Indicator */}
         <OfflineIndicator />
+
+        {/* Kiosk Mode Shortcut */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/kiosk")}
+          className="rounded-xl hover:bg-muted group text-muted-foreground hover:text-foreground"
+          title="Kiosk Self-Checkout"
+        >
+          <QrCode className="h-5 w-5 transition-transform group-hover:scale-110 text-primary" />
+        </Button>
 
         {/* Notifications */}
         <Popover open={isOpen} onOpenChange={setIsOpen}>

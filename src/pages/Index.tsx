@@ -19,7 +19,6 @@ import {
   User,
 } from "lucide-react";
 import { ScientificAnimatedBackground } from "@/components/landing/ScientificAnimatedBackground";
-import LineWaves from "@/components/landing/LineWaves";
 
 const features = [
   {

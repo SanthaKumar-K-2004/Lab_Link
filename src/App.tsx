@@ -1,8 +1,7 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -16,7 +15,6 @@ import ItemForm from "./pages/ItemForm";
 import ItemDetail from "./pages/ItemDetail";
 import PublicScan from "./pages/PublicScan";
 import QRScan from "./pages/QRScan";
-import ChangePassword from "./pages/ChangePassword";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -31,7 +29,6 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import MyRequests from "./pages/MyRequests";
 import Notifications from "./pages/Notifications";
-import BrowseItems from "./pages/BrowseItems";
 import History from "./pages/History";
 import Repairs from "./pages/Repairs";
 import MessageCenter from "./pages/MessageCenter";
@@ -56,7 +53,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <BrowserRouter
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
@@ -136,11 +132,7 @@ const App = () => (
             />
             <Route
               path="/change-password"
-              element={
-                <ProtectedRoute>
-                  <ChangePassword />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/settings" replace />}
             />
 
             {/* Admin Routes */}
@@ -242,11 +234,7 @@ const App = () => (
             />
             <Route
               path="/browse"
-              element={
-                <ProtectedRoute>
-                  <BrowseItems />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/catalog" replace />}
             />
             <Route
               path="/history"

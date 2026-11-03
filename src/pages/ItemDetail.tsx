@@ -834,7 +834,7 @@ export default function ItemDetailPage() {
             The item you're looking for doesn't exist or has been removed from
             the inventory.
           </p>
-          <Button onClick={() => navigate("/browse")} size="lg">
+          <Button onClick={() => navigate("/catalog")} size="lg">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Browse
           </Button>

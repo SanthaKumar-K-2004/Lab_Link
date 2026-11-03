@@ -44,6 +44,7 @@ const adminNavItems = [
   { icon: Building2, label: "Departments", href: "/departments" },
   { icon: Tags, label: "Categories", href: "/categories" },
   { icon: QrCode, label: "QR Management", href: "/qr-management" },
+  { icon: QrCode, label: "Kiosk Mode", href: "/kiosk" },
   { icon: ClipboardList, label: "Requests", href: "/requests" },
   { icon: BarChart3, label: "Borrow Analytics", href: "/borrow-analytics" },
   { icon: FileWarning, label: "Damage Reports", href: "/damage-reports" },
@@ -68,6 +69,7 @@ const staffNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Package, label: "Inventory", href: "/items" },
   { icon: QrCode, label: "Scan QR", href: "/scan" },
+  { icon: QrCode, label: "Kiosk Mode", href: "/kiosk" },
   { icon: ClipboardList, label: "Requests", href: "/requests" },
   { icon: FileWarning, label: "Damage Reports", href: "/damage-reports" },
   { icon: Wrench, label: "Maintenance", href: "/maintenance" },
@@ -76,7 +78,7 @@ const staffNavItems = [
 
 const studentNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Package, label: "Browse Items", href: "/browse" },
+  { icon: Package, label: "Browse Catalog", href: "/catalog" },
   { icon: ClipboardList, label: "My Requests", href: "/my-requests" },
   { icon: MessageSquare, label: "Message Center", href: "/messages" },
   { icon: History, label: "History", href: "/history" },

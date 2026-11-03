@@ -213,7 +213,7 @@ export default function StudentDashboard() {
               size="sm"
               variant="outline"
               className="flex-1 sm:flex-none rounded-xl h-10 sm:h-11 px-3 sm:px-5 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 dark:border-gray-700 dark:hover:bg-gray-800 text-xs sm:text-sm"
-              onClick={() => navigate("/browse")}
+              onClick={() => navigate("/catalog")}
             >
               <BookOpen className="h-4 w-4 mr-1.5 sm:mr-2" />
               My Requests
@@ -534,7 +534,7 @@ export default function StudentDashboard() {
                   variant="ghost"
                   size="sm"
                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
-                  onClick={() => navigate("/browse")}
+                  onClick={() => navigate("/catalog")}
                 >
                   View All <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -722,7 +722,7 @@ export default function StudentDashboard() {
                 <Button
                   variant="outline"
                   className="w-full justify-start h-14 font-medium rounded-xl border-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all"
-                  onClick={() => navigate("/browse")}
+                  onClick={() => navigate("/catalog")}
                 >
                   <div className="icon-container blue h-9 w-9 rounded-lg mr-4">
                     <FileText className="h-4 w-4" />

@@ -47,6 +47,8 @@ interface QuickLink {
 
 const quickLinks: QuickLink[] = [
   { name: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, path: "/dashboard", allowedRoles: ["admin", "staff", "technician", "student"] },
+  { name: "Browse Catalog", icon: <Package className="h-4 w-4" />, path: "/catalog", allowedRoles: ["admin", "staff", "technician", "student"] },
+  { name: "Kiosk Self-Checkout", icon: <QrCode className="h-4 w-4" />, path: "/kiosk", allowedRoles: ["admin", "staff", "technician", "student"] },
   { name: "Items", icon: <Package className="h-4 w-4" />, path: "/items", allowedRoles: ["admin", "staff", "technician", "student"] },
   { name: "Add New Item", icon: <Package className="h-4 w-4" />, path: "/items/new", allowedRoles: ["admin", "staff"] },
   { name: "Users", icon: <Users className="h-4 w-4" />, path: "/users", allowedRoles: ["admin"] },
